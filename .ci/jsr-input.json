@@ -2,7 +2,7 @@
   "schema": 1,
   "package": "@corbet-labs/ccht",
   "version": "0.2.10",
-  "source_commit": "9ca94c2805a2c1e26866392637716b6cdcf0120d",
+  "source_commit": "493ef9fc637591b8cd1c10406ebf0335a76dd737",
   "source_sha256": "96a6c411ebbd89d15bbba3d5d3827c16c80651c33e9283e413e9bd76e77b8ee1",
   "archive_url": "https://registry.npmjs.org/@corbet-labs/ccht/-/ccht-0.2.10.tgz",
   "archive_sha256": "7d6bfdc78c8768ff6882b53ecbdb1e15fa8ca48c0e4da27e03a09ad364857203"
