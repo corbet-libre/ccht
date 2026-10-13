@@ -24,6 +24,10 @@ import { createBrowserAgent } from '@corbet-labs/ccht/agent';
 import { pollinations, builtin, webllm, openrouter } from '@corbet-labs/ccht/providers';
 import { localTools, remoteMcp } from '@corbet-labs/ccht/tools';
 import { assistantLinks, mcpConnector } from '@corbet-labs/ccht/handoff';
+import AssistantPanel from '@corbet-labs/ccht/components/AssistantPanel.svelte';
+import AccountsButton from '@corbet-labs/ccht/components/AccountsButton.svelte';
+import AccountsPanel from '@corbet-labs/ccht/components/AccountsPanel.svelte';
+import { createAccounts } from '@corbet-labs/ccht/accounts';
 ```
 
 The Svelte component ships as source and needs `svelte` `^5` (a peer
@@ -400,6 +404,103 @@ and callbacks `onSelectProvider`, `onSelectModel`, `onPrepare`, `onConnect`,
 `onDisconnect`, `onAllowPaid`. It never fetches or stores. `StepConfig` backend
 options accept `disabled` and a short `note` for unavailable providers.
 
+## Component (`AssistantPanel.svelte`)
+
+One drop-in chat surface composed from `Dock`, `ChatDock` and `ProviderPicker`:
+the conversation, a compact provider/model settings area, a "via <provider> ·
+<model>" line under every answer, a one-line privacy notice, the "Ask your own
+assistant" row (door links plus Copy prompt) and an optional MCP connector
+disclosure. It runs the browser agent in the page and keeps the conversation in
+memory; it stores nothing unless you pass `storage` (provider, model and the
+billed-model opt-in only). All copy is neutral English you can override.
+
+```svelte
+<script>
+  import { pollinations, builtin, openrouter } from '@corbet-labs/ccht/providers';
+  import { localTools } from '@corbet-labs/ccht/tools';
+  const router = openrouter();
+  const providers = [pollinations(), builtin(), router];
+  let open = $state(false);
+</script>
+
+<AssistantPanel {providers} bind:open
+  tools={localTools(myTools)} instructions="Answer from the tools only."
+  contextLine={() => `Current view: ${view}`}
+  doorPrompt={({ draft }) => `Help me with my data. ${draft}`}
+  mcpUrl="https://example.org/mcp" mcpName="data"
+  copy={{ title: 'Ask', composerPlaceholder: 'Ask about the data…' }} />
+```
+
+| Prop | Meaning |
+| --- | --- |
+| `providers` (required) | `ModelProvider[]` shown in the picker; the first usable one is the default. |
+| `tools`, `instructions`, `agentOptions` | Passed to `createBrowserAgent` (`tools`, `system`, and options such as `maxSteps`, `fallback`, `rateLimitRetries`). |
+| `createAgent(provider)` | Return a ready `BrowserAgent` for the selected provider; overrides the three above. |
+| `contextLine()` | Read at send time; the line reaches the model as data (sync or async). Named `contextLine`, not `context`, so it never clashes with Svelte's mount option. |
+| `open` (bindable), `onOpenChange`, `side`, `showTab`, `panelId` | Dock behaviour. `showTab={false}` leaves opening to your own button. |
+| `copy` | `Partial<AssistantCopy>`: kicker, title, tab and close labels, composer label/placeholder/send, welcome text, settings label, `privacyNotice`, `servedBy(served)`, `tokensLabel(n)`, door and MCP strings, status messages. `defaultAssistantCopy` lists them all. |
+| `privacyNotice` | Shortcut for `copy.privacyNotice`; `''` hides the line. |
+| `pickerLabels` | `Partial<ProviderPickerLabels>`. |
+| `doorPrompt({ draft })`, `assistants` | Builds the prompt for the door row (hidden when omitted); `assistants` picks `'chatgpt' \| 'claude' \| 'perplexity'`. |
+| `mcpUrl`, `mcpName` | HTTPS MCP address for the disclosure (`mcpConnector`); an invalid address hides it. |
+| `accounts` | An `AccountsStore` (below): the provider list refreshes when an account connects or disconnects elsewhere. |
+| `storage`, `storageKey` | Optional `{ getItem, setItem }` that remembers provider, model and opt-in. |
+| `conversationId`, `onEvent(wire)` | Every `WireEvent` of every turn, for persistence or a full `ConversationModel`. |
+| Snippets | `messageBody(message)` (render Markdown; `message.served` / `message.tokens` are available), `activityExtra(turn)`, `headerExtra()`, `footer()`. |
+
+The component also exports `refresh()` (re-inspect providers; call it through
+`bind:this` after an outside change). Providers are inspected when the panel is
+mounted and each time it opens; nothing is downloaded or connected implicitly.
+
+Mobile: at 640px and below the panel is a full-screen sheet (class
+`ccht-assistant-sheet`, `data-sheet="true"`): safe-area insets (add
+`viewport-fit=cover` to your viewport meta), Tab stays inside (the panel is
+`aria-modal`), Escape closes, the page behind does not scroll, and inputs are
+16px so iOS does not zoom. Wider screens keep the non-modal edge rail. Motion
+follows `prefers-reduced-motion`.
+
+Framework-free helpers in `@corbet-labs/ccht/assistant` (`applyWireEvent`,
+`newTurn`, `messagesFromTurns`, `servedOf`) fold agent wire events into the
+`TurnState` shape without loading Wasm.
+
+## Components (`AccountsButton.svelte`, `AccountsPanel.svelte`)
+
+A separate header button that shows how many accounts are connected, and the
+panel it opens: every provider that exposes `account` (for example
+`openrouter()`) with its status, Connect / Disconnect and a one-line explanation
+of what connecting does ("Uses your own OpenRouter account; the key stays in this
+browser."). The list is whatever you pass, so adding a provider adds a row.
+
+```svelte
+<script>
+  import { openrouter } from '@corbet-labs/ccht/providers';
+  import { createAccounts } from '@corbet-labs/ccht/accounts';
+  const router = openrouter();
+  const accounts = createAccounts([router, /* other account providers */]);
+  let open = $state(false);
+</script>
+
+<header><AccountsButton {accounts} bind:open /></header>
+<AccountsPanel {accounts} bind:open />
+```
+
+`createAccounts(providers, { onChange })` returns a Svelte store (`subscribe`) with
+`get()`, `refresh()`, `connect(id)`, `disconnect(id)`, `completeRedirects()` and
+`dismissRedirect()`. Providers without `account` are ignored. Button and panel
+call `completeRedirects()` on mount: each provider's `completeRedirect()` runs
+once per store however many components ask, and the button opens the panel with
+the result ("... is connected." or a fixed failure message; upstream text is never
+shown).
+
+| Component | Props |
+| --- | --- |
+| `AccountsButton` | `accounts`, `open` (bindable), `panelId`, `label`, `countLabel(n)`, `openOnRedirect` (default true), `icon` snippet. |
+| `AccountsPanel` | `accounts`, `open` (bindable), `panelId`, `copy` (`Partial<AccountsPanelCopy>`, including `describe(provider)`), `descriptions` (per provider id), `note`, `onClose`. |
+
+Under 640px the panel is a full-screen sheet with safe-area insets, a Tab trap and
+Escape to close; wider it is a popover under the header (`--ccht-popover-top`,
+`--ccht-popover-right`). Focus returns to the button on close.
+
 ## Styling hooks
 
 Unstyled-but-hooked markup: layout comes from the app, colors resolve through
@@ -419,3 +520,30 @@ CSS variables (with fallbacks when unset): `--ccht-fg`, `--ccht-muted`,
   --ccht-accent: #7bb8ff;
 }
 ```
+
+### Variables used by the assistant and accounts components
+
+Everything resolves through `--ccht-*` custom properties with built-in dark
+fallbacks; set them on `:root` or on any ancestor. `AssistantPanel` also uses the
+ones of `Dock`, `ChatDock` and `ProviderPicker`.
+
+| Variable | Used for |
+| --- | --- |
+| `--ccht-fg`, `--ccht-fg-bright`, `--ccht-muted` | Text, emphasised text, secondary text. |
+| `--ccht-border` | Borders and dividers. |
+| `--ccht-accent` | Links, hover and focus borders, user message border. |
+| `--ccht-panel-bg` | Dock and accounts panel background. |
+| `--ccht-tab-bg`, `--ccht-tab-bg-hover` | Buttons, edge tab, header button. |
+| `--ccht-input-bg` | Composer, code block, history select. |
+| `--ccht-select-bg`, `--ccht-select-border` | Model select. |
+| `--ccht-message-bg`, `--ccht-message-assistant-bg`, `--ccht-message-user-bg` | Message cards; `--ccht-message-bg` also the account rows. |
+| `--ccht-primary-bg`, `--ccht-primary-bg-hover`, `--ccht-primary-fg` | Send button. |
+| `--ccht-kicker` | Heading kicker (falls back to `--ccht-muted`). |
+| `--ccht-error` | Error text. |
+| `--ccht-ok` | Connected status. |
+| `--ccht-badge-bg`, `--ccht-badge-fg` | Connected-count badge (background falls back to `--ccht-ok`). |
+| `--ccht-backdrop` | Dim layer behind the mobile accounts sheet. |
+| `--ccht-shadow` | Accounts popover shadow. |
+| `--ccht-popover-top`, `--ccht-popover-right` | Accounts popover position (default `3.5rem`, `1rem`). |
+| `--ccht-accounts-z` | Accounts layer (default `90`; the dock uses 70 and 80). |
+| `--ccht-assistant-gap` | Vertical gap of notice, doors and MCP rows (default `0.4rem`). |

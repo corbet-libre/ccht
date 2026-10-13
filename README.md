@@ -180,7 +180,9 @@ makes no network connection apart from loading its Wasm module. The optional
 browser agent (`@corbet-labs/ccht/agent`, `/providers`, `/tools`, `/handoff`)
 connects only to the model providers and MCP servers the application configures:
 Pollinations (keyless), the browser's built-in model, WebLLM (optional peer, user
-consented download) and the visitor's own OpenRouter account. For native
+consented download) and the visitor's own OpenRouter account. Ready-made Svelte
+components cover the chat surface (`AssistantPanel`) and the own-account
+connections (`AccountsButton`, `AccountsPanel`); see `web/README.md`. For native
 backends the host decides which agent is available and how users authenticate to
 the application.
 

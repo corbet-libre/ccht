@@ -10,6 +10,7 @@
     "./tools": "./src/tools/index.ts",
     "./providers": "./src/providers/index.ts",
     "./handoff": "./src/handoff.ts",
+    "./assistant": "./src/assistant.ts",
     "./accounts": "./src/accounts.ts"
   },
   "publish": {

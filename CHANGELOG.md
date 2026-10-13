@@ -35,6 +35,22 @@
 - ADDED (Rust): golden browser-agent wire fixtures (`src/fixtures/`) replayed by
   the shared reducer in tests.
 - JSR also exports `./agent`, `./providers`, `./tools` and `./handoff`.
+- ADDED (web): `AssistantPanel.svelte`, a drop-in chat surface built from `Dock`,
+  `ChatDock` and `ProviderPicker`: provider/model settings, "via <provider> ·
+  <model>" attribution per answer, a configurable privacy line, the "Ask your own
+  assistant" row and an optional MCP connector disclosure. The app supplies
+  providers, tools, instructions, a context getter, copy and the door prompt. At
+  640px and below it is a full-screen sheet (safe-area insets, focus trap,
+  Escape, scroll lock, 16px inputs).
+- ADDED (web): `AccountsButton.svelte` and `AccountsPanel.svelte` with
+  `createAccounts` (`@corbet-labs/ccht/accounts`): a header button with the
+  connected count and a panel listing every provider that exposes `account`, with
+  Connect / Disconnect, an explanation line and one-time `completeRedirect` on
+  page load.
+- ADDED (web): `@corbet-labs/ccht/assistant`, framework-free helpers that fold
+  browser-agent wire events into `TurnState` without Wasm.
+- CHANGED (web): `Dock` accepts `showTab={false}` and ignores an Escape that
+  another layer already handled.
 
 ## 0.2.10 - 2026-09-25
 
