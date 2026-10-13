@@ -189,3 +189,16 @@ describe('refresh and errors', () => {
     expect(queryByRole('button', { name: /Refresh models|Loading/ })).toBeNull();
   });
 });
+
+describe('backend notes', () => {
+  test('disabled backends stay visible with their reason', () => {
+    const { getByLabelText } = openSteps([step({ backendOptions: [
+      { value: 'local', name: 'Local' },
+      { value: 'webllm', name: 'Local model', disabled: true, note: 'needs WebGPU' },
+    ] })]);
+    const options = [...(getByLabelText('Creator chat assistant') as HTMLSelectElement).options];
+    expect(options.map((option) => option.textContent?.trim())).toEqual(['Configured default', 'Local', 'Local model (needs WebGPU)']);
+    expect(options[2]!.disabled).toBe(true);
+    expect(options[1]!.disabled).toBe(false);
+  });
+});

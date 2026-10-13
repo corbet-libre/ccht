@@ -9,6 +9,10 @@
   export interface StepBackendOption {
     value: string;
     name: string;
+    /** Not selectable right now (for example an unsupported provider). */
+    disabled?: boolean;
+    /** Short reason, appended to the label, for example "needs WebGPU". */
+    note?: string;
   }
 
   export interface StepModelOption {
@@ -111,7 +115,9 @@
     >
       <option value="">{step.backendPlaceholder}</option>
       {#each step.backendOptions as backend (backend.value)}
-        <option value={backend.value}>{backend.name}</option>
+        <option value={backend.value} disabled={backend.disabled}>
+          {backend.note ? `${backend.name} (${backend.note})` : backend.name}
+        </option>
       {/each}
     </select>
     {#if accountSlot && !step.accountConnected}

@@ -42,6 +42,7 @@
     "./components/AccountConnection.svelte": "./src/components/AccountConnection.svelte",
     "./components/ChatDock.svelte": "./src/components/ChatDock.svelte",
     "./components/Dock.svelte": "./src/components/Dock.svelte",
+    "./components/ProviderPicker.svelte": "./src/components/ProviderPicker.svelte",
     "./components/StepConfig.svelte": "./src/components/StepConfig.svelte",
     "./ccht_bg.wasm": "./wasm/ccht_bg.wasm"
   },
