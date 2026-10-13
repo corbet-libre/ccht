@@ -90,3 +90,21 @@ describe('open rail', () => {
     expect(getByRole('dialog', { name: 'Scope' })).toBeTruthy();
   });
 });
+
+describe('opening from the app', () => {
+  test('showTab=false renders no edge tab', () => {
+    const { queryByRole } = openDock({ showTab: false });
+    expect(queryByRole('button', { name: /Open Scope/ })).toBeNull();
+  });
+
+  test('an Escape another layer already handled does not close the dock', async () => {
+    const onClose = vi.fn();
+    openDock({ open: true, onClose });
+    const handled = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+    handled.preventDefault();
+    window.dispatchEvent(handled);
+    expect(onClose).not.toHaveBeenCalled();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});

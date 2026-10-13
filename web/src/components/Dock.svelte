@@ -15,6 +15,7 @@
     tabSummary = '',
     closeLabel,
     panelId,
+    showTab = true,
     children
   }: {
     side: 'left' | 'right';
@@ -26,6 +27,8 @@
     tabSummary?: string;
     closeLabel?: string;
     panelId: string;
+    /** Render the edge tab while closed (default). Turn off when the app opens the dock from its own button. */
+    showTab?: boolean;
     children: Snippet;
   } = $props();
 
@@ -71,13 +74,13 @@
   });
 
   function onKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && open) onClose();
+    if (event.key === 'Escape' && open && !event.defaultPrevented) onClose();
   }
 </script>
 
 <svelte:window onkeydown={onKeydown} />
 
-{#if !open}
+{#if !open && showTab}
   <button
     bind:this={tabEl}
     type="button"
