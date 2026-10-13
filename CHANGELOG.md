@@ -9,6 +9,33 @@
 - JSR exports only JavaScript and TypeScript modules; the Svelte components
   stay npm imports.
 
+## 0.3.0 - 2026-10-13
+
+- ADDED (web): the browser agent, `createBrowserAgent` (`@corbet-labs/ccht/agent`).
+  An in-page model/tool loop that emits standard ACP `session/update` payloads
+  into the shared conversation model: streamed `agent_message_chunk` /
+  `agent_thought_chunk`, `tool_call` / `tool_call_update` (pending, in progress,
+  completed or failed, with raw input and output), cancellation through
+  `AbortSignal`, stable error codes with fixed messages, and an explicit
+  free-only fallback list. Native agents are unchanged and still use the official
+  ACP SDK; the browser agent is the only in-library loop (`AGENTS.md`).
+- ADDED (web): model providers (`@corbet-labs/ccht/providers`): `pollinations`
+  (keyless), `builtin` (Prompt API), `webllm` (optional peer dependency
+  `@mlc-ai/web-llm`, loaded only on explicit user action) and `openrouter`
+  (own-account OAuth PKCE, key only in `localStorage`, only sent to
+  openrouter.ai, free models by default, billed models behind an opt-in).
+  `inspectProviders` reports availability reasons for UIs.
+- ADDED (web): tools are MCP tools (`@corbet-labs/ccht/tools`): `localTools` and
+  `remoteMcp`, a Streamable HTTP client for the stateless 2026-07-28 revision with
+  fallback to legacy `initialize` sessions.
+- ADDED (web): `@corbet-labs/ccht/handoff` door openers (ChatGPT, Claude,
+  Perplexity prefilled URLs, MCP connector snippets) and the generic
+  `ProviderPicker.svelte`; `StepConfig` backend options accept `disabled` and
+  `note`.
+- ADDED (Rust): golden browser-agent wire fixtures (`src/fixtures/`) replayed by
+  the shared reducer in tests.
+- JSR also exports `./agent`, `./providers`, `./tools` and `./handoff`.
+
 ## 0.2.10 - 2026-09-25
 
 - 0.2.9 reached crates.io only. Its npm upload of the 19 MB tarball timed out

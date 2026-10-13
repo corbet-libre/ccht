@@ -18,10 +18,15 @@ streaming, cancellation, permission requests, native login MECHANISMS
 product UI, instructions, context, tools, user authorization, storage and
 HTTP/WebSocket/SSE transport. No Corbet-specific prompts or database are required.
 
-Agent reasoning, tools, and protocol translation remain upstream.
-ccht does not implement an agent loop, persist or read back provider credentials,
+Native agent reasoning, tools, and protocol translation remain upstream: ccht
+does not implement a native agent loop, persist or read back provider credentials,
 install agents, call paid model HTTP APIs or select an API-key fallback. Login
 drivers project vendor state only; storage, prompts, and authority stay in the app.
+
+The one in-library loop is the **browser agent** (`web/`): it runs free or
+own-account models in the page, uses MCP tools for data, and emits the same ACP
+updates as native agents, so every consumer can offer a chat with no API key from
+the application. See `web/README.md`.
 
 ## Layers
 
@@ -170,9 +175,14 @@ conversation.free();
 
 Version 0.2.0 requires an explicit `wasm` URL or bytes on first initialization.
 A browser cannot launch native processes: its
-application server or desktop host runs `ccht::native`. The package makes no
-network connection apart from loading its Wasm module. The host decides which
-backend is available and how users authenticate to the application.
+application server or desktop host runs `ccht::native`. The conversation model
+makes no network connection apart from loading its Wasm module. The optional
+browser agent (`@corbet-labs/ccht/agent`, `/providers`, `/tools`, `/handoff`)
+connects only to the model providers and MCP servers the application configures:
+Pollinations (keyless), the browser's built-in model, WebLLM (optional peer, user
+consented download) and the visitor's own OpenRouter account. For native
+backends the host decides which agent is available and how users authenticate to
+the application.
 
 ## JSR
 

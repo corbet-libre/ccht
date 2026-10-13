@@ -10,12 +10,20 @@ connector alongside the generic `./components/Dock.svelte` edge rail. All
 entries are product-neutral: no product names, prompts, or
 pricing appear in this package.
 
+Besides the conversation model, the package ships a **browser agent** with free
+model providers and MCP tools, so any consumer can offer a chat with real data
+and no application API key (see "Browser agent" below).
+
 ```js
 import { createConversation } from '@corbet-labs/ccht';
 import { isAuthenticated, validateChallenge } from '@corbet-labs/ccht/auth';
 import { createDockManager, validateDockId } from '@corbet-labs/ccht/dock';
 import AccountConnection from '@corbet-labs/ccht/components/AccountConnection.svelte';
 import Dock from '@corbet-labs/ccht/components/Dock.svelte';
+import { createBrowserAgent } from '@corbet-labs/ccht/agent';
+import { pollinations, builtin, webllm, openrouter } from '@corbet-labs/ccht/providers';
+import { localTools, remoteMcp } from '@corbet-labs/ccht/tools';
+import { assistantLinks, mcpConnector } from '@corbet-labs/ccht/handoff';
 ```
 
 The Svelte component ships as source and needs `svelte` `^5` (a peer
@@ -29,22 +37,29 @@ Shared (this package):
 - Auth/challenge types and validators (`AuthState`, `Challenge`,
   `CredentialsProvider`).
 - Presentational account connector markup with stable styling hooks.
+- The browser agent, free/own-account model providers, the MCP tool client and
+  the door-opener helpers (below).
 
 Owned by the embedding application:
 
 - Transport: delivering `WireEvent`s (HTTP/WebSocket/SSE), serving the Wasm
   bytes, and polling login operations until they complete.
-- Effects: spawning agents, starting or cancelling logins, signing out. These
-  never run in browser library code; the component drives them through
-  app-supplied async callbacks and the app backend does the work.
+- Effects: spawning native agents, starting or cancelling logins, signing out.
+  These never run in browser library code; the components drive them through
+  app-supplied async callbacks and the app backend does the work. (The browser
+  agent is the one in-page loop; it only talks to the providers and MCP servers
+  you configure.)
 - Storage: where credentials persist (OS keychain natively, origin-scoped
   browser storage on the web). The library defines the interface only.
 - Product copy: account labels, help text, links, and error wording beyond the
   component's generic strings.
 
-Rule: browser code in this package never spawns agents, performs network I/O,
-or holds ambient authority. Service keys are explicit strings passed by the
-app, and secrets are opaque bytes that are never logged.
+Rule: the conversation, auth, dock and component modules never spawn
+processes, perform network I/O, or hold ambient authority. The browser agent,
+providers and MCP client are the only modules that use the network, and only
+through an injectable `fetch`; they never spawn agents, never download a model
+without an explicit user action, and never log. Service keys are explicit
+strings passed by the app, and secrets are opaque bytes that are never logged.
 
 ## Auth entry (`@corbet-labs/ccht/auth`)
 
@@ -266,6 +281,124 @@ extras, grouped select choices flattened in order, per-step Refresh with
 loading state, and configuration errors as alerts. The `bottom`/`inline`
 placements have no rail chrome; like `Dock`, this component never fetches,
 spawns, or stores.
+
+## Browser agent (`@corbet-labs/ccht/agent`)
+
+An in-page model/tool loop that emits standard ACP `session/update` payloads as
+`WireEvent`s, so `createConversation`, `ChatDock` and replay treat it exactly like
+a native agent. It is the only agent loop in the library; native agents keep using
+the official ACP SDK. No API key is needed from the application.
+
+```ts
+const agent = createBrowserAgent({
+  provider: pollinations(),
+  tools: localTools([{ name: 'get_weather', description: 'Weather for a city',
+    inputSchema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] },
+    handler: ({ city }) => ({ city, celsius: 18 }) }]),
+  system: 'Answer briefly using the tools.',
+});
+const conversation = await createConversation('chat-1');
+for await (const wire of agent.turn({ conversationId: 'chat-1', text, history, signal })) {
+  conversation.applyEvent(wire); // render conversation.snapshot() in ChatDock
+}
+```
+
+`createBrowserAgent({ provider, tools?, system?, maxSteps?, fallback?, maxToolOutputChars?, toolTimeoutMs?, maxOutputTokens? })`
+returns `{ provider, turn(input) }`. `turn({ conversationId, text, history?, model?,
+requestId?, context?, signal?, maxOutputTokens? })` yields ordered events:
+
+| Event | Meaning |
+| --- | --- |
+| `user_message_chunk` | The prompt, first. |
+| `agent_message_chunk` / `agent_thought_chunk` | Streamed answer / reasoning text. |
+| `tool_call` (`pending`, `rawInput`) then `tool_call_update` (`in_progress`, then `completed` or `failed` with `rawOutput` and `content`) | One MCP tool call. |
+| `session_info_update` | `_meta['ccht/served']` (for example `Pollinations · GPT-OSS 20B`) and `_meta['ccht/token_usage']`. |
+| `completed` (`end_turn`, `max_tokens`, `refusal`, `max_turn_requests`, `cancelled`) or `error` | Exactly one terminal event. |
+
+- **Cancel** with the `AbortSignal` (a Stop button): the model request and any
+  tool call are aborted, open tool calls are failed, and the turn completes with
+  `cancelled`.
+- **Errors** end the turn with a stable `code` and a fixed message, never upstream
+  text: `provider_unavailable`, `rate_limited`, `auth_required`, `payment_required`,
+  `model_unavailable`, `consent_required`, `network_error`, `invalid_response`,
+  `incomplete_stream`, `provider_error`, `configuration_error`, `tools_unavailable`.
+- **No retry elsewhere** unless you pass `fallback: [providerB, providerC]`, an
+  explicit ordered list of **free** providers (`billing === 'free'`, enforced). A
+  fallback is used only for retryable failures before the failing request showed any
+  output.
+- Tool failures become `failed` updates the model can read; the loop continues. The
+  last allowed step is offered no tools, so the model must answer. Tool output is
+  truncated to `maxToolOutputChars` (default 24000).
+- `historyFromTurns(snapshot.turns)` builds follow-up history from completed turns;
+  `buildSystemPrompt` and `toolDataNotice` state that tool results are data, never
+  instructions (the agent adds this notice itself whenever tools are present).
+
+## Providers (`@corbet-labs/ccht/providers`)
+
+Every provider has `id`, `label`, `attribution`, `billing` (`'free'` or
+`'user_account'`), `available()` returning `{ ok, state, reason?, download? }`
+(`state`: `ready | needs_sign_in | needs_consent | unsupported | unavailable`),
+`models()` for `StepConfig`, and optional `prepare()` for explicit downloads. Use
+`inspectProviders(providers)` to build entries for `ProviderPicker.svelte`.
+
+| Provider | Needs | Notes |
+| --- | --- | --- |
+| `pollinations({ referrer? })` | nothing | Keyless, anonymous tier, `https://text.pollinations.ai/openai`; the model list keeps anonymous-tier tool-capable models. `referrer` optionally identifies your app. Show the attribution "Pollinations". |
+| `builtin({ languages? })` | Chrome/Edge with the Prompt API (`LanguageModel`) | `available()` maps `unavailable / downloadable / downloading / available`. A download starts only from `prepare()` (call it from a click). Tools use the constrained-JSON protocol (`responseConstraint`). |
+| `webllm({ load })` | WebGPU and the optional peer `@mlc-ai/web-llm` | `load` is `loadWebLlm` from `@corbet-labs/ccht/providers/webllm-loader` (or your own `() => import('@mlc-ai/web-llm')`); it runs only inside `prepare()`. `models()` carry `approxDownloadMB` and `memoryMB` for the consent prompt. Tools use the constrained-JSON protocol. |
+| `openrouter({ allowPaid?, pinned?, storage?, session? })` | the visitor's own OpenRouter account | OAuth PKCE (S256 plus `state`). Key only in the visitor's `localStorage` and only sent to `https://openrouter.ai/api/v1/`; the verifier lives in `sessionStorage`. Free (`:free`) tool-capable models by default; billed models appear only after `provider.allowPaid = true` and are labelled "billed to your account". Call `await provider.completeRedirect()` on page load; `provider.account.connect()/disconnect()`. |
+
+```ts
+import { webllm, pollinations } from '@corbet-labs/ccht/providers';
+import { loadWebLlm } from '@corbet-labs/ccht/providers/webllm-loader'; // only if you use WebLLM
+const local = webllm({ load: loadWebLlm });
+const entries = await inspectProviders([pollinations(), builtin(), local, openrouter()]);
+// On a click, after showing entries[i].availability.download:
+await local.prepare({ model, onProgress: ({ loaded }) => setProgress(loaded) });
+```
+
+Free capacity is shared and best effort; tell users that answers can fail with
+`rate_limited`. Built-in and local models are small: expect weaker tool use.
+
+## Tools are MCP tools (`@corbet-labs/ccht/tools`)
+
+Data access follows ACP: the agent is given MCP tools at session start. A
+`ToolSource` has `listTools(signal?)` and `callTool(name, args, { signal })`.
+
+- `localTools([{ name, description, inputSchema, handler }])`: in-page handlers in
+  the MCP tool shape. `handler(args, { signal })` returns a string, any JSON value or
+  an MCP result; throw `ToolError(message)` for failures the model may see.
+- `remoteMcp(url, { headers?, fetch?, timeoutMs? })`: an MCP Streamable HTTP client
+  (`tools/list` with pagination, `tools/call`, JSON or SSE responses). It speaks the
+  stateless 2026-07-28 revision (per-request `_meta`, `MCP-Protocol-Version`,
+  `Mcp-Method`, `Mcp-Name`, `Mcp-Param-*` from `x-mcp-header`) and falls back to the
+  `initialize`/`Mcp-Session-Id` sessions of 2025-03-26 to 2025-11-25 on a non-modern
+  400/404/405, as the specification describes. The server must allow cross-origin
+  requests (and expose `Mcp-Session-Id` for legacy sessions). Elicitation and
+  sampling are not supported; such calls fail with a clear tool error. Supply
+  authorization through `headers`; nothing is stored.
+- `mergeTools(a, b)` combines sources; pass an array as `tools` for the same effect.
+
+## Door openers (`@corbet-labs/ccht/handoff`)
+
+Pure functions, no network: `assistantLinks(prompt)` returns prefilled URLs for
+ChatGPT (`https://chatgpt.com/?q=`), Claude (`https://claude.ai/new?q=`) and
+Perplexity (`https://www.perplexity.ai/search/new?q=`). Prefill is best effort and
+unofficial (each link reports `prefill: 'expected' | 'unconfirmed'`); pair it with a
+copy-prompt button. `mcpConnector(url, name)` returns the endpoint, a
+`claude mcp add --transport http` command and a generic `mcpServers` JSON snippet for
+users who connect your remote MCP server to their own assistant.
+
+## Component (`ProviderPicker.svelte`)
+
+Content-only provider picker: availability reason per provider, an explicit
+download consent step with a size disclosure (progress bar while preparing),
+connect/disconnect for own-account providers, the "allow billed models" opt-in and
+a model select. Props: `entries` (from `inspectProviders`), `selectedId`,
+`modelValue`, `progress`, `busyId`, `allowPaid`, `labels` (all strings overridable),
+and callbacks `onSelectProvider`, `onSelectModel`, `onPrepare`, `onConnect`,
+`onDisconnect`, `onAllowPaid`. It never fetches or stores. `StepConfig` backend
+options accept `disabled` and a short `note` for unavailable providers.
 
 ## Styling hooks
 
