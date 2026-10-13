@@ -9,7 +9,8 @@
     "./agent": "./src/agent/index.ts",
     "./tools": "./src/tools/index.ts",
     "./providers": "./src/providers/index.ts",
-    "./handoff": "./src/handoff.ts"
+    "./handoff": "./src/handoff.ts",
+    "./accounts": "./src/accounts.ts"
   },
   "publish": {
     "include": [
