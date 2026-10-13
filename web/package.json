@@ -19,6 +19,14 @@
       "types": "./src/dock.ts",
       "import": "./src/dock.ts"
     },
+    "./agent": {
+      "types": "./src/agent/index.ts",
+      "import": "./src/agent/index.ts"
+    },
+    "./tools": {
+      "types": "./src/tools/index.ts",
+      "import": "./src/tools/index.ts"
+    },
     "./components/AccountConnection.svelte": "./src/components/AccountConnection.svelte",
     "./components/ChatDock.svelte": "./src/components/ChatDock.svelte",
     "./components/Dock.svelte": "./src/components/Dock.svelte",
@@ -34,7 +42,7 @@
     "access": "public"
   },
   "scripts": {
-    "test": "bun test src/dock.test.ts src/auth.test.ts && vitest run"
+    "test": "bun test src/dock.test.ts src/auth.test.ts src/agent src/tools && vitest run"
   },
   "peerDependencies": {
     "svelte": "^5"

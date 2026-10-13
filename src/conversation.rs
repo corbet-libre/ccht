@@ -591,4 +591,43 @@ mod tests {
         assert!(turn.permissions.is_empty());
         assert!(turn.error.is_some());
     }
+    /// The browser agent (web/src/agent) emits these events; its TypeScript test
+    /// regenerates and compares the same file, so both sides stay in sync.
+    #[test]
+    fn browser_agent_tool_turn_replays_through_the_shared_model() {
+        let events: Vec<WireEvent> =
+            serde_json::from_str(include_str!("fixtures/browser_agent_tool_turn.json")).unwrap();
+        let mut conversation = Conversation::new("golden");
+        for event in events {
+            assert!(conversation.apply(event).unwrap());
+        }
+        let turn = &conversation.turns()[0];
+        assert_eq!(turn.status, "completed");
+        assert_eq!(turn.user_text, "Weather in Zurich?");
+        assert_eq!(turn.text, "Checking. It is 21 degrees.");
+        assert_eq!(turn.thought_text, "Need the weather.");
+        assert_eq!(turn.stop_reason, Some(acp::StopReason::EndTurn));
+        let tool = &turn.tools["t1"];
+        assert_eq!(tool.title, "get_weather");
+        assert_eq!(tool.status, acp::ToolCallStatus::Completed);
+        assert_eq!(tool.raw_input.as_ref().unwrap()["city"], "Zurich");
+        assert_eq!(
+            tool.raw_output.as_ref().unwrap()["structuredContent"]["temperature"],
+            21
+        );
+        assert!(turn.updates.contains_key("session_info_update"));
+    }
+
+    #[test]
+    fn browser_agent_error_code_is_a_failed_turn() {
+        let events: Vec<WireEvent> =
+            serde_json::from_str(include_str!("fixtures/browser_agent_rate_limited.json")).unwrap();
+        let mut conversation = Conversation::new("golden");
+        for event in events {
+            conversation.apply(event).unwrap();
+        }
+        let turn = &conversation.turns()[0];
+        assert_eq!(turn.status, "failed");
+        assert_eq!(turn.error.as_ref().unwrap()["code"], "rate_limited");
+    }
 }

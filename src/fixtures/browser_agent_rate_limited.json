@@ -1,0 +1,29 @@
+[
+  {
+    "version": 1,
+    "conversation_id": "golden",
+    "request_id": "req-2",
+    "sequence": 1,
+    "event": {
+      "kind": "update",
+      "update": {
+        "sessionUpdate": "user_message_chunk",
+        "content": {
+          "type": "text",
+          "text": "Hello"
+        }
+      }
+    }
+  },
+  {
+    "version": 1,
+    "conversation_id": "golden",
+    "request_id": "req-2",
+    "sequence": 2,
+    "event": {
+      "kind": "error",
+      "code": "rate_limited",
+      "message": "The model provider is rate limiting requests. Try again later."
+    }
+  }
+]

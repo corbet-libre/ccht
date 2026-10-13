@@ -5,7 +5,9 @@
   "exports": {
     ".": "./index.js",
     "./auth": "./src/auth.ts",
-    "./dock": "./src/dock.ts"
+    "./dock": "./src/dock.ts",
+    "./agent": "./src/agent/index.ts",
+    "./tools": "./src/tools/index.ts"
   },
   "publish": {
     "include": [
