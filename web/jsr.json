@@ -7,7 +7,8 @@
     "./auth": "./src/auth.ts",
     "./dock": "./src/dock.ts",
     "./agent": "./src/agent/index.ts",
-    "./tools": "./src/tools/index.ts"
+    "./tools": "./src/tools/index.ts",
+    "./providers": "./src/providers/index.ts"
   },
   "publish": {
     "include": [

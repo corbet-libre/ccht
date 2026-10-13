@@ -27,6 +27,14 @@
       "types": "./src/tools/index.ts",
       "import": "./src/tools/index.ts"
     },
+    "./providers": {
+      "types": "./src/providers/index.ts",
+      "import": "./src/providers/index.ts"
+    },
+    "./providers/webllm-loader": {
+      "types": "./src/providers/webllm-loader.ts",
+      "import": "./src/providers/webllm-loader.ts"
+    },
     "./components/AccountConnection.svelte": "./src/components/AccountConnection.svelte",
     "./components/ChatDock.svelte": "./src/components/ChatDock.svelte",
     "./components/Dock.svelte": "./src/components/Dock.svelte",
@@ -42,10 +50,16 @@
     "access": "public"
   },
   "scripts": {
-    "test": "bun test src/dock.test.ts src/auth.test.ts src/agent src/tools && vitest run"
+    "test": "bun test src/dock.test.ts src/auth.test.ts src/agent src/tools src/providers && vitest run"
   },
   "peerDependencies": {
+    "@mlc-ai/web-llm": "^0.2.86",
     "svelte": "^5"
+  },
+  "peerDependenciesMeta": {
+    "@mlc-ai/web-llm": {
+      "optional": true
+    }
   },
   "sideEffects": false,
   "devDependencies": {
