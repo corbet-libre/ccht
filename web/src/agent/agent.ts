@@ -16,6 +16,17 @@ import { linkSignals, raceAbort } from '../signals.ts';
 import { mergeTools } from '../tools/local.ts';
 import { renderToolResult, truncateText } from '../tools/render.ts';
 import type { CchtEvent, WireEvent } from '../../index.js';
+
+/** Resolves true after `ms`, or false as soon as `signal` aborts. */
+function pause(ms: number, signal: AbortSignal): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (signal.aborted) return resolve(false);
+    const done = (value: boolean) => { clearTimeout(timer); signal.removeEventListener('abort', stop); resolve(value); };
+    const stop = () => done(false);
+    const timer = setTimeout(() => done(true), ms);
+    signal.addEventListener('abort', stop, { once: true });
+  });
+}
 import type {
   ChatMessage, FinishReason, McpToolDefinition, ModelChunk, ModelProvider, TokenUsage, ToolCallRequest, ToolResult, ToolSource,
 } from './types.ts';
@@ -34,6 +45,10 @@ export interface BrowserAgentOptions {
   maxToolOutputChars?: number;
   /** Per tool-call timeout in milliseconds (default 30000). */
   toolTimeoutMs?: number;
+  /** Opt-in: retries of the same provider after a rate limit, only while nothing was shown yet (default 0). */
+  rateLimitRetries?: number;
+  /** Base pause in milliseconds; the n-th retry waits n times this (default 4000). */
+  rateLimitPauseMs?: number;
   maxOutputTokens?: number;
 }
 
@@ -134,6 +149,8 @@ export function createBrowserAgent(options: BrowserAgentOptions): BrowserAgent {
       ];
 
       const chain = [provider, ...fallback];
+      const rateLimitRetries = options.rateLimitRetries ?? 0;
+      const rateLimitPauseMs = options.rateLimitPauseMs ?? 4000;
       const primaryModel = input.model ?? (await provider.models().catch(() => []))[0]?.value;
       if (!primaryModel) { yield fail('configuration_error'); return; }
       const maxOutputTokens = input.maxOutputTokens ?? options.maxOutputTokens;
@@ -141,40 +158,48 @@ export function createBrowserAgent(options: BrowserAgentOptions): BrowserAgent {
       // One model request, with the explicit fallback list. Yields output events as they stream.
       async function* modelStep(offered: typeof specs): AsyncGenerator<WireEvent, Outcome, void> {
         let last: ProviderError = new ProviderError('provider_unavailable');
-        for (const [index, candidate] of chain.entries()) {
+        chain: for (const [index, candidate] of chain.entries()) {
           if (index > 0 && candidate.billing !== 'free') continue;
           const model = index === 0 ? primaryModel! : (await candidate.models().catch(() => [])).find((m) => !m.billed)?.value;
           if (!model) { last = new ProviderError('model_unavailable'); continue; }
-          let produced = false;
-          let text = '';
-          const calls: ToolCallRequest[] = [];
-          let finish: { reason: FinishReason; usage?: TokenUsage } | undefined;
-          try {
-            const stream: AsyncIterable<ModelChunk> = candidate.stream({ model, messages, tools: offered, maxOutputTokens, signal });
-            for await (const chunk of stream) {
-              if (signal.aborted) return { kind: 'cancelled' };
-              if (chunk.type === 'text') {
-                produced = true; text += chunk.text;
-                yield update({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: chunk.text } });
-              } else if (chunk.type === 'reasoning') {
-                produced = true;
-                yield update({ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: chunk.text } });
-              } else if (chunk.type === 'tool_call') {
-                calls.push(chunk.call);
-              } else {
-                finish = { reason: chunk.reason, usage: chunk.usage };
+          attempts: for (let attempt = 0; ; attempt++) {
+            let produced = false;
+            let text = '';
+            const calls: ToolCallRequest[] = [];
+            let finish: { reason: FinishReason; usage?: TokenUsage } | undefined;
+            try {
+              const stream: AsyncIterable<ModelChunk> = candidate.stream({ model, messages, tools: offered, maxOutputTokens, signal });
+              for await (const chunk of stream) {
+                if (signal.aborted) return { kind: 'cancelled' };
+                if (chunk.type === 'text') {
+                  produced = true; text += chunk.text;
+                  yield update({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: chunk.text } });
+                } else if (chunk.type === 'reasoning') {
+                  produced = true;
+                  yield update({ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: chunk.text } });
+                } else if (chunk.type === 'tool_call') {
+                  calls.push(chunk.call);
+                } else {
+                  finish = { reason: chunk.reason, usage: chunk.usage };
+                }
               }
+              if (signal.aborted) return { kind: 'cancelled' };
+              if (!finish) throw new ProviderError('incomplete_stream');
+              const label = candidate.attribution ?? candidate.label;
+              const name = (await candidate.models().catch(() => [])).find((m) => m.value === model)?.name ?? model;
+              return { kind: 'done', text, calls, finish: finish.reason, usage: finish.usage, served: `${label} · ${name}` };
+            } catch (error) {
+              if (signal.aborted || (isAbort(error) && !(error instanceof ProviderError))) return { kind: 'cancelled' };
+              last = toProviderError(error);
+              // A free provider's short rate limit is waited out before anything is shown.
+              if (!produced && last.code === 'rate_limited' && attempt < rateLimitRetries) {
+                if (!(await pause(rateLimitPauseMs * (attempt + 1), signal))) return { kind: 'cancelled' };
+                continue attempts;
+              }
+              // Fall through to the next configured free provider only if nothing was shown.
+              if (produced || !last.retryable) break chain;
+              break attempts;
             }
-            if (signal.aborted) return { kind: 'cancelled' };
-            if (!finish) throw new ProviderError('incomplete_stream');
-            const label = candidate.attribution ?? candidate.label;
-            const name = (await candidate.models().catch(() => [])).find((m) => m.value === model)?.name ?? model;
-            return { kind: 'done', text, calls, finish: finish.reason, usage: finish.usage, served: `${label} · ${name}` };
-          } catch (error) {
-            if (signal.aborted || (isAbort(error) && !(error instanceof ProviderError))) return { kind: 'cancelled' };
-            last = toProviderError(error);
-            // Fall through to the next configured free provider only if nothing was shown.
-            if (produced || !last.retryable) break;
           }
         }
         return { kind: 'failed', error: last };

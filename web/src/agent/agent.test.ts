@@ -214,6 +214,22 @@ describe('provider errors', () => {
   });
 });
 
+describe('rate limits', () => {
+  test('an opted-in rate-limit retry waits and retries the same provider before anything is shown', async () => {
+    const provider = scripted([[new ProviderError('rate_limited')], [{ type: 'text', text: 'ok' }, finish()]]);
+    const events = await turn(createBrowserAgent({ provider, rateLimitRetries: 1, rateLimitPauseMs: 1 }));
+    expect(provider.requests.length).toBe(2);
+    expect(JSON.stringify(events)).toContain('ok');
+    expect(JSON.stringify(events)).not.toContain('rate_limited');
+  });
+  test('without opting in, a rate limit ends the turn after one request', async () => {
+    const provider = scripted([[new ProviderError('rate_limited')], [{ type: 'text', text: 'ok' }, finish()]]);
+    const events = await turn(createBrowserAgent({ provider }));
+    expect(provider.requests.length).toBe(1);
+    expect(JSON.stringify(events)).toContain('rate_limited');
+  });
+});
+
 describe('fallback', () => {
   const failing = () => scripted([[new ProviderError('rate_limited', 429)]]);
 
