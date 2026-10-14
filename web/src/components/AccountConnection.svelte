@@ -2,6 +2,45 @@
   (starting device flows, polling logins, storing keys, signing out); this
   component only renders state and forwards user intent through app-supplied
   async callbacks. It never spawns agents, polls, or touches credentials. -->
+<script module lang="ts">
+  /** Every user-facing string of the connector. Functions receive the account label. */
+  export interface AccountConnectionLabels {
+    ariaLabel: (account: string) => string;
+    connected: string;
+    disconnect: string;
+    checking: (account: string) => string;
+    cancel: string;
+    enterCode: (account: string) => string;
+    copyAndContinue: string;
+    continueTo: (account: string) => string;
+    copyFailed: string;
+    starting: string;
+    signInHint: (account: string) => string;
+    signIn: (account: string) => string;
+    keyLabel: (account: string) => string;
+    connectKey: (account: string) => string;
+    notConnected: string;
+  }
+
+  export const defaultAccountConnectionLabels: AccountConnectionLabels = {
+    ariaLabel: (account) => `${account} connection`,
+    connected: 'Connected',
+    disconnect: 'Disconnect',
+    checking: (account) => `Checking ${account} connection status…`,
+    cancel: 'Cancel',
+    enterCode: (account) => `Enter this code on the ${account} sign-in page:`,
+    copyAndContinue: 'Copy code and continue',
+    continueTo: (account) => `Continue to ${account}`,
+    copyFailed: 'Could not copy automatically. Copy the code above into the sign-in page.',
+    starting: 'Starting account connection…',
+    signInHint: (account) => `Sign in with your ${account} account.`,
+    signIn: (account) => `Sign in to ${account}`,
+    keyLabel: (account) => `${account} account key`,
+    connectKey: (account) => `Connect ${account}`,
+    notConnected: 'Not connected',
+  };
+</script>
+
 <script lang="ts">
   import {
     authAccount,
@@ -25,7 +64,8 @@
     onStart,
     onCancel,
     onKeySubmit,
-    onDisconnect
+    onDisconnect,
+    labels = {}
   }: {
     account: AccountRef;
     state: AuthState;
@@ -35,7 +75,11 @@
     onCancel: () => void | Promise<void>;
     onKeySubmit: (key: string) => void | Promise<void>;
     onDisconnect?: () => void | Promise<void>;
+    /** Overrides of the built-in English strings. */
+    labels?: Partial<AccountConnectionLabels>;
   } = $props();
+
+  const text: AccountConnectionLabels = $derived({ ...defaultAccountConnectionLabels, ...labels });
 
   let key = $state('');
   let copyError = $state('');
@@ -87,36 +131,36 @@
       await navigator.clipboard.writeText(validChallenge.user_code);
       copyError = '';
     } catch {
-      copyError = 'Could not copy automatically. Copy the code above into the sign-in page.';
+      copyError = text.copyFailed;
     }
   }
 </script>
 
-<section class="ccht-account" aria-label={`${account.label} connection`}>
+<section class="ccht-account" aria-label={text.ariaLabel(account.label)}>
   {#if authenticated}
-    <p class="ccht-status" role="status">Connected{#if accountName} · {accountName}{/if}</p>
+    <p class="ccht-status" role="status">{text.connected}{#if accountName} · {accountName}{/if}</p>
     <button
       type="button"
       class="ccht-button ccht-disconnect"
       disabled={busy}
       onclick={() => invoke(onDisconnect ?? onCancel)}
     >
-      Disconnect
+      {text.disconnect}
     </button>
   {:else if authState === 'unknown'}
-    <p class="ccht-status" role="status">Checking {account.label} connection status…</p>
+    <p class="ccht-status" role="status">{text.checking(account.label)}</p>
     {#if busy}
       <button type="button" class="ccht-button ccht-cancel" onclick={() => invoke(onCancel)}>
-        Cancel
+        {text.cancel}
       </button>
     {/if}
   {:else if isDeviceCodeAccount}
     {#if validChallenge}
       <div class="ccht-challenge" aria-live="polite">
-        <p class="ccht-hint">Enter this code on the {account.label} sign-in page:</p>
+        <p class="ccht-hint">{text.enterCode(account.label)}</p>
         <code class="ccht-code">{validChallenge.user_code}</code>
         <button type="button" class="ccht-button" disabled={busy} onclick={() => void copyAndContinue()}>
-          Copy code and continue
+          {text.copyAndContinue}
         </button>
         <p>
           <a
@@ -125,28 +169,28 @@
             target="_blank"
             rel="noopener noreferrer"
           >
-            Continue to {account.label}
+            {text.continueTo(account.label)}
           </a>
         </p>
         {#if copyError}<p class="ccht-error" role="alert">{copyError}</p>{/if}
       </div>
     {:else if busy}
-      <p class="ccht-status" role="status">Starting account connection…</p>
+      <p class="ccht-status" role="status">{text.starting}</p>
     {:else}
-      <p class="ccht-hint">Sign in with your {account.label} account.</p>
+      <p class="ccht-hint">{text.signInHint(account.label)}</p>
       <button type="button" class="ccht-button" onclick={() => invoke(onStart)}>
-        Sign in to {account.label}
+        {text.signIn(account.label)}
       </button>
     {/if}
     {#if busy}
       <button type="button" class="ccht-button ccht-cancel" onclick={() => invoke(onCancel)}>
-        Cancel
+        {text.cancel}
       </button>
     {/if}
   {:else if isKeyAccount}
     <form class="ccht-keyform" onsubmit={submitKey}>
       <label class="ccht-label" for={keyInputId}>
-        {account.label} account key
+        {text.keyLabel(account.label)}
         <input
           id={keyInputId}
           class="ccht-input"
@@ -159,23 +203,23 @@
         />
       </label>
       <button type="submit" class="ccht-button" disabled={!canSubmitKey}>
-        Connect {account.label}
+        {text.connectKey(account.label)}
       </button>
     </form>
     {#if busy}
       <button type="button" class="ccht-button ccht-cancel" onclick={() => invoke(onCancel)}>
-        Cancel
+        {text.cancel}
       </button>
     {/if}
   {:else}
-    <p class="ccht-status" role="status">Not connected</p>
-    <p class="ccht-hint">Sign in with your {account.label} account.</p>
+    <p class="ccht-status" role="status">{text.notConnected}</p>
+    <p class="ccht-hint">{text.signInHint(account.label)}</p>
     <button type="button" class="ccht-button" disabled={busy} onclick={() => invoke(onStart)}>
-      Sign in to {account.label}
+      {text.signIn(account.label)}
     </button>
     {#if busy}
       <button type="button" class="ccht-button ccht-cancel" onclick={() => invoke(onCancel)}>
-        Cancel
+        {text.cancel}
       </button>
     {/if}
   {/if}

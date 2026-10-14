@@ -14,6 +14,8 @@
     tabLabel,
     tabSummary = '',
     closeLabel,
+    closeText = 'Close',
+    openLabel = (name: string, summary: string) => (summary ? `Open ${name}: ${summary}` : `Open ${name}`),
     panelId,
     showTab = true,
     children
@@ -25,7 +27,12 @@
     onOpen: () => void;
     tabLabel: string;
     tabSummary?: string;
+    /** Accessible name of the close button (default `Close <title>`). */
     closeLabel?: string;
+    /** Visible text of the close button. */
+    closeText?: string;
+    /** Accessible name of the edge tab, from the title and summary. */
+    openLabel?: (title: string, summary: string) => string;
     panelId: string;
     /** Render the edge tab while closed (default). Turn off when the app opens the dock from its own button. */
     showTab?: boolean;
@@ -88,7 +95,7 @@
     data-side={side}
     aria-expanded="false"
     aria-controls={panelId}
-    aria-label={tabSummary ? `Open ${title}: ${tabSummary}` : `Open ${title}`}
+    aria-label={openLabel(title, tabSummary)}
     onclick={handleTabClick}
   ><span class="ccht-dock-tab-text">{tabLabel} · {tabSummary || title}</span></button>
 {/if}
@@ -106,7 +113,7 @@
 >
   <div class="ccht-dock-head">
     <div class="ccht-dock-title"><h2>{title}</h2>{#if tabSummary}<p>{tabSummary}</p>{/if}</div>
-    <button type="button" class="ccht-dock-close" aria-label={dismissLabel} onclick={onClose}>Close</button>
+    <button type="button" class="ccht-dock-close" aria-label={dismissLabel} onclick={onClose}>{closeText}</button>
   </div>
   <div class="ccht-dock-body">{#if children}{@render children()}{/if}</div>
 </div>

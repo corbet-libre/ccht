@@ -23,22 +23,64 @@
     message_count?: number;
   }
 
-  /** Default status text for a turn. The application may override it. */
+  /** Every user-facing string of the dock that is not a prop of its own. */
+  export interface ChatDockLabels {
+    /** Name above the user's messages. */
+    you: string;
+    stop: string;
+    copyMessage: string;
+    copied: string;
+    showActivity: string;
+    reasoning: string;
+    plan: string;
+    /** Label of the conversation picker. */
+    conversationPicker: string;
+    /** Picker title for a conversation without one. */
+    untitled: string;
+    /** Accessible name of the message list. */
+    messagesLabel: (title: string) => string;
+    /** Context usage line; `size` is undefined when the agent did not report it. */
+    contextUsage: (used: number, size: number | undefined) => string;
+    permissionsPending: (requestIds: string[]) => string;
+    /** Tool status shown while the agent reported none. */
+    toolPending: string;
+    /** Error line of a failed turn; the code is stable, the message is the fixed English one. */
+    errorLine: (error: { code: string; message: string }) => string;
+    /** Status text per turn state. */
+    status: Record<TurnState['status'], string>;
+  }
+
+  /** `ChatDockLabels` with every entry optional, including single statuses. */
+  export type ChatDockLabelOverrides = Partial<Omit<ChatDockLabels, 'status'>> & { status?: Partial<ChatDockLabels['status']> };
+
+  export const defaultChatDockLabels: ChatDockLabels = {
+    you: 'You',
+    stop: 'Stop',
+    copyMessage: 'Copy',
+    copied: 'Copied',
+    showActivity: 'Show activity',
+    reasoning: 'Reasoning',
+    plan: 'Plan',
+    conversationPicker: 'Conversation',
+    untitled: 'Untitled conversation',
+    messagesLabel: (title) => `${title} messages`,
+    contextUsage: (used, size) => `Context: ${used.toLocaleString()} / ${size === undefined ? '?' : size.toLocaleString()} tokens`,
+    permissionsPending: (ids) => `${ids.length} ${ids.length === 1 ? 'permission request' : 'permission requests'} pending: ${ids.join(', ')}`,
+    toolPending: 'pending',
+    errorLine: (error) => `${error.code}: ${error.message}`,
+    status: {
+      streaming: 'Responding…',
+      awaiting_permission: 'Needs approval',
+      completed: 'Done',
+      cancelled: 'Stopped',
+      refused: 'Declined',
+      failed: 'Failed',
+    },
+  };
+
+  /** Default status text for a turn (English). Pass `labels.status` or `statusLabel` to change it. */
   export function defaultChatStatusLabel(activity: TurnState): string {
-    switch (activity.status) {
-      case 'streaming':
-        return 'Responding…';
-      case 'awaiting_permission':
-        return 'Needs approval';
-      case 'completed':
-        return 'Done';
-      case 'cancelled':
-        return 'Stopped';
-      case 'refused':
-        return 'Declined';
-      case 'failed':
-        return 'Failed';
-    }
+    return defaultChatDockLabels.status[activity.status];
   }
 </script>
 
@@ -71,7 +113,8 @@
     onSelectHistory,
     onCopy,
     onShowActivity,
-    statusLabel = defaultChatStatusLabel,
+    labels = {},
+    statusLabel,
     headerExtra,
     statusNote,
     messageBody,
@@ -101,6 +144,9 @@
     onSelectHistory?: (id: string) => void;
     onCopy?: (id: string, content: string) => void;
     onShowActivity?: (msg: ChatDockMessage) => void;
+    /** Overrides of the built-in English strings. */
+    labels?: ChatDockLabelOverrides;
+    /** Full control over the status text; defaults to `labels.status`. */
     statusLabel?: (activity: TurnState) => string;
     headerExtra?: Snippet;
     statusNote?: Snippet;
@@ -108,6 +154,7 @@
     activityExtra?: Snippet<[TurnState]>;
   } = $props();
 
+  const text: ChatDockLabels = $derived({ ...defaultChatDockLabels, ...labels, status: { ...defaultChatDockLabels.status, ...labels.status } });
   const sendDisabled: boolean = $derived(
     submitting || !canSend || controlsLoading || draft.trim().length === 0
   );
@@ -166,7 +213,7 @@
   }
 
   function historyTitle(item: ChatHistoryItem): string {
-    const label = item.title ?? 'Untitled conversation';
+    const label = item.title || text.untitled;
     return typeof item.message_count === 'number'
       ? `${label} · ${item.message_count}`
       : label;
@@ -194,7 +241,7 @@
 
 {#if showHistoryPicker}
   <div class="ccht-chat-picker">
-    <label for="{composerId}-history">Conversation</label>
+    <label for="{composerId}-history">{text.conversationPicker}</label>
     <select
       id="{composerId}-history"
       value={activeHistoryId ?? ''}
@@ -208,7 +255,7 @@
   </div>
 {/if}
 
-<div class="ccht-chat-messages" aria-live="polite" aria-label="{title} messages">
+<div class="ccht-chat-messages" aria-live="polite" aria-label={text.messagesLabel(title)}>
   {#if messages.length === 0}
     <article class="ccht-chat-message ccht-chat-message-assistant ccht-chat-welcome">
       <strong>{welcomeTitle}</strong>
@@ -222,7 +269,7 @@
       class:ccht-chat-message-user={message.role === 'user'}
       class:ccht-chat-message-assistant={message.role === 'assistant'}
     >
-      <strong>{message.role === 'user' ? 'You' : welcomeTitle}</strong>
+      <strong>{message.role === 'user' ? text.you : welcomeTitle}</strong>
       {#if messageBody}
         {@render messageBody(message)}
       {:else}
@@ -230,13 +277,13 @@
       {/if}
       {#if message.content}
         <button type="button" class="ccht-chat-copy" onclick={() => void copyMessage(message.id, message.content)}>
-          {copiedId === message.id ? 'Copied' : 'Copy'}
+          {copiedId === message.id ? text.copied : text.copyMessage}
         </button>
       {/if}
       {#if message.modelName}<small class="ccht-chat-model">{message.modelName}</small>{/if}
       {#if message.role === 'assistant' && message.requestId && !message.activity && onShowActivity}
         <button type="button" class="ccht-chat-copy" onclick={() => invoke(() => onShowActivity(message))}>
-          Show activity
+          {text.showActivity}
         </button>
       {/if}
       {#if message.activity}
@@ -246,13 +293,13 @@
         {:else}
           {#if activity.thought_text}
             <details class="ccht-chat-reasoning">
-              <summary>Reasoning</summary>
+              <summary>{text.reasoning}</summary>
               <p>{activity.thought_text}</p>
             </details>
           {/if}
           {#each Object.values(activity.tools) as tool (tool.toolCallId)}
             <details class="ccht-chat-tool">
-              <summary>{tool.title} · {tool.status ?? 'pending'}</summary>
+              <summary>{tool.title} · {tool.status ?? text.toolPending}</summary>
               <pre>{JSON.stringify(
                 { input: tool.rawInput, output: tool.rawOutput, content: tool.content },
                 null,
@@ -262,18 +309,14 @@
           {/each}
           {@const usage = activity.updates.usage_update as { used?: unknown; size?: unknown } | undefined}
           {#if typeof usage?.used === 'number'}
-            <p class="ccht-chat-usage">
-              Context: {usage.used.toLocaleString()} / {typeof usage.size === 'number'
-                ? usage.size.toLocaleString()
-                : '?'} tokens
-            </p>
+            <p class="ccht-chat-usage">{text.contextUsage(usage.used, typeof usage.size === 'number' ? usage.size : undefined)}</p>
           {/if}
           {@const plan = activity.updates.plan as
             | { entries?: Array<{ content?: unknown; status?: unknown }> }
             | undefined}
           {#if Array.isArray(plan?.entries) && plan.entries.length > 0}
             <details class="ccht-chat-plan">
-              <summary>Plan</summary>
+              <summary>{text.plan}</summary>
               <ol>
                 {#each plan.entries as entry}
                   <li>{String(entry.content ?? '')} · {String(entry.status ?? '')}</li>
@@ -282,17 +325,13 @@
             </details>
           {/if}
           {#if activity.permissions.length > 0}
-            <p class="ccht-chat-permissions">
-              {activity.permissions.length}
-              {activity.permissions.length === 1 ? 'permission request' : 'permission requests'}
-              pending: {activity.permissions.map((permission) => permission.request_id).join(', ')}
-            </p>
+            <p class="ccht-chat-permissions">{text.permissionsPending(activity.permissions.map((permission) => permission.request_id))}</p>
           {/if}
           {#if activity.error}
-            <p class="ccht-chat-error" role="alert">{activity.error.code}: {activity.error.message}</p>
+            <p class="ccht-chat-error" role="alert">{text.errorLine(activity.error)}</p>
           {/if}
           <p class="ccht-chat-status">
-            <span role="status">{statusLabel(activity)}</span>{#if activity.stop_reason}<span>
+            <span role="status">{(statusLabel ?? ((turn) => text.status[turn.status]))(activity)}</span>{#if activity.stop_reason}<span>
                 · {activity.stop_reason}</span>{/if}
           </p>
         {/if}
@@ -314,7 +353,7 @@
   ></textarea>
   <div class="ccht-chat-actions">
     {#if submitting && onStop}
-      <button type="button" class="ccht-chat-stop" onclick={() => invoke(onStop)}>Stop</button>
+      <button type="button" class="ccht-chat-stop" onclick={() => invoke(onStop)}>{text.stop}</button>
     {/if}
     <button type="submit" class="ccht-chat-primary" aria-label={sendLabel} disabled={sendDisabled}>
       {sendLabel}
@@ -354,7 +393,7 @@
     min-width: 0; min-height: 2.2rem; padding: 0.4rem 0.5rem;
     border: 1px solid var(--ccht-border, #30405c); border-radius: 0.45rem;
     color: var(--ccht-fg, #c2cede); background: var(--ccht-input-bg, #111c2d);
-    font-size: 0.68rem; font-family: inherit;
+    font-family: inherit; font-size: var(--ccht-select-font-size, 0.85rem);
   }
   .ccht-chat-messages {
     flex: 1 1 auto; min-height: 0; margin: 0.8rem -0.25rem 0; padding: 0 0.25rem 0.5rem;
@@ -420,5 +459,9 @@
   }
   @media (max-width: 640px) {
     .ccht-chat-message-user { margin-left: 0.75rem; }
+  }
+  /* 16px stops iOS from zooming into a focused field; only touch devices need it. */
+  @media (pointer: coarse) {
+    .ccht-chat-composer textarea, .ccht-chat-picker select { font-size: 16px; }
   }
 </style>

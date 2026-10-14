@@ -20,6 +20,25 @@
     name: string;
   }
 
+  /** Every user-facing string of the form that is not part of the step data. */
+  export interface StepConfigLabels {
+    /** Label of the backend select, from the step label. */
+    assistant: (step: string) => string;
+    /** Label of the model select, from the step label. */
+    model: (step: string) => string;
+    noModel: string;
+    loadingControls: string;
+    refreshModels: string;
+  }
+
+  export const defaultStepConfigLabels: StepConfigLabels = {
+    assistant: (step) => `${step} assistant`,
+    model: (step) => `${step} model`,
+    noModel: 'No model',
+    loadingControls: 'Loading controls…',
+    refreshModels: 'Refresh models',
+  };
+
   export interface StepData {
     id: string;
     label: string;
@@ -54,7 +73,8 @@
     onRefresh,
     accountSlot,
     headerCopy,
-    footerSlot
+    footerSlot,
+    labels = {}
   }: {
     steps: StepData[];
     refreshing?: boolean;
@@ -69,7 +89,11 @@
     accountSlot?: Snippet<[{ step: string }]>;
     headerCopy?: Snippet;
     footerSlot?: Snippet;
+    /** Overrides of the built-in English strings. */
+    labels?: Partial<StepConfigLabels>;
   } = $props();
+
+  const text: StepConfigLabels = $derived({ ...defaultStepConfigLabels, ...labels });
 
   // Flatten grouped select choices while preserving order.
   function choices(option: SessionConfigOption | undefined): ConfigChoice[] {
@@ -104,7 +128,7 @@
   <fieldset class="ccht-step">
     <legend>{step.label}</legend>
     <label class="ccht-step-label" for={`ccht-step-${step.id}-assistant`}>
-      {step.label} assistant
+      {text.assistant(step.label)}
     </label>
     <select
       id={`ccht-step-${step.id}-assistant`}
@@ -124,7 +148,7 @@
       {@render accountSlot({ step: step.id })}
     {:else}
       <label class="ccht-step-label" for={`ccht-step-${step.id}-model`}>
-        {step.label} model
+        {text.model(step.label)}
       </label>
       <select
         id={`ccht-step-${step.id}-model`}
@@ -139,7 +163,7 @@
         {:else if step.modelValue}
           <option value={step.modelValue}>{step.modelValue}</option>
         {:else}
-          <option value="" disabled>No model</option>
+          <option value="" disabled>{text.noModel}</option>
         {/if}
       </select>
       {#each extraOptions(step) as item (item.id)}
@@ -182,7 +206,7 @@
           disabled={refreshing}
           onclick={() => onRefresh(step.id)}
         >
-          {refreshing ? 'Loading controls…' : 'Refresh models'}
+          {refreshing ? text.loadingControls : text.refreshModels}
         </button>
         {#if step.configurationError}
           <span class="ccht-step-error" role="alert">

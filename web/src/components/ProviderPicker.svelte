@@ -15,6 +15,7 @@
     disconnect: string;
     allowPaid: string;
     connected: string;
+    downloadProgress: string;
     /** Disclosure shown before a download is started. */
     downloadNote: (download: NonNullable<ProviderEntry['availability']['download']>) => string;
   }
@@ -31,6 +32,7 @@
     disconnect: 'Disconnect',
     allowPaid: 'Allow models billed to my account',
     connected: 'Connected',
+    downloadProgress: 'Download progress',
     downloadNote: (download) =>
       [
         download.approxMB ? `Downloads about ${formatMB(download.approxMB)} to this device` : 'Downloads a model to this device',
@@ -49,6 +51,7 @@
     busyId = null,
     allowPaid = false,
     labels = {},
+    accountControls = true,
     onSelectProvider,
     onSelectModel,
     onPrepare,
@@ -63,6 +66,8 @@
     busyId?: string | null;
     allowPaid?: boolean;
     labels?: Partial<ProviderPickerLabels>;
+    /** Show Connect, Connected and Disconnect (default). Turn off when the app has its own accounts UI; the billed-models opt-in stays while an account is connected. */
+    accountControls?: boolean;
     onSelectProvider: (id: string) => void;
     onSelectModel: (id: string, model: string) => void;
     onPrepare?: (id: string) => void;
@@ -107,7 +112,7 @@
               class="ccht-provider-progress"
               max="1"
               value={progress[entry.id].loaded}
-              aria-label={progress[entry.id].text ?? 'Download progress'}
+              aria-label={progress[entry.id].text ?? text.downloadProgress}
             ></progress>
           {/if}
           {#if onPrepare}
@@ -116,19 +121,21 @@
             </button>
           {/if}
         {:else if state === 'needs_sign_in'}
-          {#if onConnect}
+          {#if onConnect && accountControls}
             <button type="button" class="ccht-provider-action" disabled={busyId === entry.id} onclick={() => onConnect(entry.id)}>
               {text.connect}
             </button>
           {/if}
         {/if}
         {#if entry.account?.connected}
-          <p class="ccht-provider-connected">
-            {text.connected}
-            {#if onDisconnect}
-              <button type="button" class="ccht-provider-action" onclick={() => onDisconnect(entry.id)}>{text.disconnect}</button>
-            {/if}
-          </p>
+          {#if accountControls}
+            <p class="ccht-provider-connected">
+              {text.connected}
+              {#if onDisconnect}
+                <button type="button" class="ccht-provider-action" onclick={() => onDisconnect(entry.id)}>{text.disconnect}</button>
+              {/if}
+            </p>
+          {/if}
           {#if onAllowPaid}
             <label class="ccht-provider-paid">
               <input type="checkbox" checked={allowPaid} onchange={(event) => onAllowPaid(event.currentTarget.checked)} />
@@ -199,5 +206,10 @@
     border-radius: 0.4rem;
     background: var(--ccht-select-bg, #070f1b);
     color: var(--ccht-fg-bright, #e2eaf5);
+    font-size: var(--ccht-select-font-size, 0.85rem);
+  }
+  /* 16px stops iOS from zooming into a focused field; only touch devices need it. */
+  @media (pointer: coarse) {
+    .ccht-provider-model { font-size: 16px; }
   }
 </style>
