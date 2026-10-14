@@ -2,14 +2,10 @@
 
 ## Unreleased
 
-- JSR: 0.2.10 was not published there. Its npm `README.md` (from
-  `web/README.md`) lacks the source extraction instruction and the
-  replacement paragraphs the generated-JSR contract requires; add them before
-  the next release so JSR catches up (docs/releasing.md).
-- JSR exports only JavaScript and TypeScript modules; the Svelte components
-  stay npm imports.
+## 0.3.0 - 2026-10-14
 
-## 0.3.0 - 2026-10-13
+- JSR: published again (0.2.10 was skipped there); exports include the new
+  `./agent`, `./tools`, `./providers`, `./handoff`, `./assistant` and `./accounts`.
 
 - ADDED (web): the browser agent, `createBrowserAgent` (`@corbet-labs/ccht/agent`).
   An in-page model/tool loop that emits standard ACP `session/update` payloads
