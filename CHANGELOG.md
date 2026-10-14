@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.3.2 - 2026-10-14
+
+- FIXED (web): `history.ts` declares the DOM library, so the JSR package type-checks;
+  0.3.1 is unchanged on crates.io, npm and PyPI and was not published to JSR.
+
 ## 0.3.1 - 2026-10-14
 
 - ADDED (web): conversation history for `AssistantPanel`. The `history` prop takes

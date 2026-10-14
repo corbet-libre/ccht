@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 /** Conversation history for `AssistantPanel.svelte`: a small storage adapter
  * interface, a ready `localStorage` implementation and the pure helpers around
  * the persisted format.
