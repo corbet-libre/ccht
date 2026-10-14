@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "package": "@corbet-labs/ccht",
-  "version": "0.3.1",
-  "source_commit": "cfbc316f60f9778e0aec609ef2882b258cff119e",
-  "source_sha256": "84881d7c699804e414c0322e7fb5c7b7ca88e00e59f25063ee43e1bc4437a631",
-  "archive_url": "https://registry.npmjs.org/@corbet-labs/ccht/-/ccht-0.3.1.tgz",
-  "archive_sha256": "fa037988d084a85d04be77f0771571223ffce9912919ebb024833e002400d7c7"
+  "version": "0.3.2",
+  "source_commit": "f98eca3d3923fc4518c408c9b8ed6e3d122c7dae",
+  "source_sha256": "77dafbd988ffa7408106e78e9a4971c55f21b393e5afd37e68b81f15baef24ae",
+  "archive_url": "https://registry.npmjs.org/@corbet-labs/ccht/-/ccht-0.3.2.tgz",
+  "archive_sha256": "a258e7b727d861c78900feb66f8ccae1281bc45573ec4a076301a4461c06f0c9"
 }

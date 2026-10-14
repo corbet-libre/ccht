@@ -76,9 +76,9 @@ dependencies = [
 
 [[package]]
 name = "ccht"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d1452fc58bb40845076a0e655b7819a6085ba89721fa0ecb6c2026b77b05293"
+checksum = "ec5efaf4adf0c4384ef336f009ea25c8d7663cece73c6254973fd6aa9deb6e83"
 dependencies = [
  "agent-client-protocol-schema",
  "serde",
@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "ccht-python"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ccht",
  "pyo3",
