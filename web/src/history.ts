@@ -1,4 +1,3 @@
-/// <reference lib="dom" />
 /** Conversation history for `AssistantPanel.svelte`: a small storage adapter
  * interface, a ready `localStorage` implementation and the pure helpers around
  * the persisted format.
@@ -140,18 +139,24 @@ export interface ConversationExport {
   events: WireEvent[];
 }
 
-export function buildExport(conversation: StoredConversation, snapshot: ConversationSnapshot, now = new Date()): ConversationExport {
+export function buildExport(conversation: StoredConversation, snapshot: ConversationSnapshot, now: Date = new Date()): ConversationExport {
   return { format: 'ccht.conversation', version: 1, exported_at: now.toISOString(), title: conversation.title, snapshot, events: conversation.events };
 }
 
 /** `<title-slug>-YYYY-MM-DD.json`. */
-export function exportFileName(title: string, now = new Date()): string {
+export function exportFileName(title: string, now: Date = new Date()): string {
   const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/g, '') || 'conversation';
   return `${slug}-${now.toISOString().slice(0, 10)}.json`;
 }
 
 /** Offer `value` as a JSON file download. Throws where the browser cannot. */
+// Structural DOM types: the package type-checks without the DOM library (JSR forbids global lib directives).
+interface DownloadLink { href: string; download: string; click(): void; remove(): void }
+interface DownloadDocument { createElement(tag: 'a'): DownloadLink; body: { append(node: DownloadLink): void } }
+
 export function downloadJson(fileName: string, value: unknown): void {
+  const document = (globalThis as { document?: DownloadDocument }).document;
+  if (!document) throw new Error('Downloads need a browser document.');
   const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }));
   try {
     const link = document.createElement('a');
