@@ -142,7 +142,7 @@ const failed = (message: string): ToolResult => ({ isError: true, content: [{ ty
 export function remoteMcp(url: string, options: RemoteMcpOptions = {}): RemoteMcp {
   const endpoint = checkUrl(url).href;
   const send = options.fetch ?? ((input, init) => fetch(input, init));
-  const clientInfo = options.clientInfo ?? { name: 'ccht', version: '0.3.2' };
+  const clientInfo = options.clientInfo ?? { name: 'ccht', version: '0.3.3' };
   const timeoutMs = options.timeoutMs ?? 30_000;
   let era: 'modern' | 'legacy' | undefined;
   let nextId = 1;

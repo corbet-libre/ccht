@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.3.3 - 2026-10-14
+
+- FIXED (web): `downloadJson` type-checks with and without the DOM library (0.3.2 failed
+  `svelte-check` in apps that load DOM types).
+- CHANGED (web): the conversation picker labels the count ("· 2 messages") through a new
+  `historyItem(title, messages)` label.
+
 ## 0.3.2 - 2026-10-14
 
 - FIXED (web): `history.ts` declares the DOM library, so the JSR package type-checks;

@@ -130,7 +130,7 @@ describe('history: restore, save, new, pick', () => {
     await fireEvent.click(view.getByRole('button', { name: 'New conversation' }));
     expect(view.queryByText('first question')).toBeNull();
     const picker = view.getByLabelText('Conversation') as HTMLSelectElement;
-    expect([...picker.options].map((option) => option.textContent)).toEqual(['New conversation', 'first question · 2']);
+    expect([...picker.options].map((option) => option.textContent)).toEqual(['New conversation', 'first question · 2 messages']);
     await ask(view, 'second question');
     await waitFor(async () => expect(await history.list()).toHaveLength(2));
     await waitFor(() => expect([...(view.getByLabelText('Conversation') as HTMLSelectElement).options]).toHaveLength(3));
@@ -388,8 +388,8 @@ describe('copy overrides', () => {
       },
     });
     const history = await seeded(stored('x', '', 'a', 1));
-    const view = await mounted({ providers: [hang], history, copy: { stop: 'Anhalten', conversationPicker: 'Gespräch', untitled: 'Ohne Titel' } });
-    expect((view.getByLabelText('Gespräch') as HTMLSelectElement).options[1]!.textContent).toBe('Ohne Titel · 2');
+    const view = await mounted({ providers: [hang], history, copy: { stop: 'Anhalten', conversationPicker: 'Gespräch', untitled: 'Ohne Titel', historyItem: (title: string, n: number) => `${title} · ${n} Nachrichten` } });
+    expect((view.getByLabelText('Gespräch') as HTMLSelectElement).options[1]!.textContent).toBe('Ohne Titel · 2 Nachrichten');
     await ask(view, 'go');
     await fireEvent.click(await view.findByRole('button', { name: 'Anhalten' }));
     await waitFor(() => expect(view.queryByRole('button', { name: 'Anhalten' })).toBeNull());

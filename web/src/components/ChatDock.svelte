@@ -37,6 +37,8 @@
     conversationPicker: string;
     /** Picker title for a conversation without one. */
     untitled: string;
+    /** Picker entry: conversation title and its message count. */
+    historyItem: (title: string, messages: number) => string;
     /** Accessible name of the message list. */
     messagesLabel: (title: string) => string;
     /** Context usage line; `size` is undefined when the agent did not report it. */
@@ -63,6 +65,7 @@
     plan: 'Plan',
     conversationPicker: 'Conversation',
     untitled: 'Untitled conversation',
+    historyItem: (title, messages) => `${title} · ${messages} ${messages === 1 ? 'message' : 'messages'}`,
     messagesLabel: (title) => `${title} messages`,
     contextUsage: (used, size) => `Context: ${used.toLocaleString()} / ${size === undefined ? '?' : size.toLocaleString()} tokens`,
     permissionsPending: (ids) => `${ids.length} ${ids.length === 1 ? 'permission request' : 'permission requests'} pending: ${ids.join(', ')}`,
@@ -214,9 +217,7 @@
 
   function historyTitle(item: ChatHistoryItem): string {
     const label = item.title || text.untitled;
-    return typeof item.message_count === 'number'
-      ? `${label} · ${item.message_count}`
-      : label;
+    return typeof item.message_count === 'number' ? text.historyItem(label, item.message_count) : label;
   }
 </script>
 

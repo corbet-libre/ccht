@@ -53,7 +53,7 @@ describe('ChatDock labels', () => {
   test('every string can be replaced', async () => {
     const labels = {
       you: 'Sie', stop: 'Anhalten', copyMessage: 'Kopieren', copied: 'Kopiert', showActivity: 'Aktivität zeigen', reasoning: 'Überlegung', plan: 'Vorhaben',
-      conversationPicker: 'Gespräch', untitled: 'Ohne Titel', toolPending: 'wartet',
+      conversationPicker: 'Gespräch', untitled: 'Ohne Titel', historyItem: (title: string, n: number) => `${title} · ${n} Nachrichten`, toolPending: 'wartet',
       messagesLabel: (title: string) => `Nachrichten: ${title}`,
       contextUsage: (used: number, size: number | undefined) => `Kontext ${used}/${size}`,
       permissionsPending: (ids: string[]) => `${ids.length} Freigaben offen`,
@@ -69,7 +69,7 @@ describe('ChatDock labels', () => {
     }
     expect(view.getByLabelText('Nachrichten: Chat')).toBeTruthy();
     expect(view.getByLabelText('Gespräch')).toBeTruthy();
-    expect(view.getByText('Ohne Titel · 2')).toBeTruthy();
+    expect(view.getByText('Ohne Titel · 2 Nachrichten')).toBeTruthy();
     await fireEvent.click(view.getAllByText('Kopieren')[0]!);
     await vi.waitFor(() => expect(view.getByText('Kopiert')).toBeTruthy());
     for (const english of ['You', 'Stop', 'Copy', 'Show activity', 'Reasoning', 'Plan', 'Failed', 'Conversation']) {

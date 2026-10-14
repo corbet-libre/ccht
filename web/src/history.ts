@@ -155,7 +155,8 @@ interface DownloadLink { href: string; download: string; click(): void; remove()
 interface DownloadDocument { createElement(tag: 'a'): DownloadLink; body: { append(node: DownloadLink): void } }
 
 export function downloadJson(fileName: string, value: unknown): void {
-  const document = (globalThis as { document?: DownloadDocument }).document;
+  // `unknown` first: the cast must hold both with and without the DOM library loaded.
+  const document = (globalThis as unknown as { document?: DownloadDocument }).document;
   if (!document) throw new Error('Downloads need a browser document.');
   const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }));
   try {
