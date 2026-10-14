@@ -121,6 +121,7 @@ Svelte 5 runes. Props:
 | `onCancel` | `() => void \| Promise<void>` | Abort the in-flight operation; also backs Disconnect when `onDisconnect` is omitted. |
 | `onKeySubmit` | `(key: string) => void \| Promise<void>` | Persist a trimmed account key (minimum 8 characters). |
 | `onDisconnect` | optional | Sign out when authenticated. Falls back to `onCancel`, which can branch on app state. |
+| `labels` | `Partial<AccountConnectionLabels>` | Every visible string (defaults in `defaultAccountConnectionLabels`); functions receive the account label. |
 
 Rendering:
 
@@ -183,6 +184,7 @@ a non-empty string of at most 64 ASCII `[a-z0-9-_]` characters.
 | `onOpen` | `() => void` | Open intent from the edge tab button. |
 | `tabLabel` | `string` | Short tab caption. |
 | `tabSummary` | `string` (optional, defaults to `''`) | Detail shown in the tab button and panel head. |
+| `closeText`, `openLabel(title, summary)` | optional | Visible text of the close button (default `Close`) and accessible name of the edge tab (default `Open <title>: <summary>`), for localisation. |
 | `closeLabel` | optional `string` | Close button label (defaults to `Close {title}`). |
 | `panelId` | `string` | Panel element id, referenced by the tab's `aria-controls`. |
 | `children` | `Snippet` | Panel body content. |
@@ -239,8 +241,17 @@ Props: `kicker`, `title`, composer `composerId/Label/Placeholder`,
 `sending`, `canSend`, `controlsLoading`, `composerDisabled`,
 `onSend(text)`, `onStop?`, `onSelectHistory?(id)` (`''` means new),
 `onCopy?(id, content)`, `onShowActivity?(msg)`,
-`statusLabel?` (defaults to `defaultChatStatusLabel`: Responding… / Needs
-approval / Done / Stopped / Declined / Failed).
+`labels?` (see below), `statusLabel?` (full control over the status text;
+defaults to `labels.status`: Responding… / Needs approval / Done / Stopped /
+Declined / Failed).
+
+`labels` (`ChatDockLabelOverrides`, defaults in `defaultChatDockLabels`) holds
+every other string: `you`, `stop`, `copyMessage`, `copied`, `showActivity`,
+`reasoning`, `plan`, `conversationPicker`, `untitled`, `toolPending`,
+`messagesLabel(title)`, `contextUsage(used, size)`,
+`permissionsPending(ids)`, `errorLine({ code, message })` (localise by the
+stable `code`) and `status` (per turn state, individually overridable). No
+English is rendered from anywhere else.
 
 Optional snippets: `headerExtra` (for example a run badge),
 `statusNote` (for example a readiness hint pointing at configuration),
@@ -274,7 +285,9 @@ it in `Dock`). `StepData` carries one step's `id`, `label`,
 
 Props: `steps: StepData[]`, `refreshing`, `onSelectBackend(id, value)`,
 `onSelectModel(id, value)`,
-`onSelectOption(id, option, value)`, `onRefresh(id)`. Optional snippets:
+`onSelectOption(id, option, value)`, `onRefresh(id)`, `labels?` (`StepConfigLabels`,
+defaults in `defaultStepConfigLabels`: the two select labels, `noModel`,
+`loadingControls`, `refreshModels`). Optional snippets:
 `accountSlot({ step })` (rendered for disconnected steps; the app wires
 `AccountConnection` there), `headerCopy`, `footerSlot`.
 
@@ -400,6 +413,9 @@ download consent step with a size disclosure (progress bar while preparing),
 connect/disconnect for own-account providers, the "allow billed models" opt-in and
 a model select. Props: `entries` (from `inspectProviders`), `selectedId`,
 `modelValue`, `progress`, `busyId`, `allowPaid`, `labels` (all strings overridable),
+`accountControls` (default `true`; `false` hides Connect, Connected and Disconnect
+for apps with their own accounts UI, while the billed-models opt-in stays visible
+for a connected account),
 and callbacks `onSelectProvider`, `onSelectModel`, `onPrepare`, `onConnect`,
 `onDisconnect`, `onAllowPaid`. It never fetches or stores. `StepConfig` backend
 options accept `disabled` and a short `note` for unavailable providers.
@@ -411,8 +427,9 @@ the conversation, a compact provider/model settings area, a "via <provider> ·
 <model>" line under every answer, a one-line privacy notice, the "Ask your own
 assistant" row (door links plus Copy prompt) and an optional MCP connector
 disclosure. It runs the browser agent in the page and keeps the conversation in
-memory; it stores nothing unless you pass `storage` (provider, model and the
-billed-model opt-in only). All copy is neutral English you can override.
+memory unless you pass `history` (below); it remembers nothing else unless you
+pass `storage` (provider, model and the billed-model opt-in only). All copy is
+neutral English you can override.
 
 ```svelte
 <script>
@@ -438,15 +455,71 @@ billed-model opt-in only). All copy is neutral English you can override.
 | `createAgent(provider)` | Return a ready `BrowserAgent` for the selected provider; overrides the three above. |
 | `contextLine()` | Read at send time; the line reaches the model as data (sync or async). Named `contextLine`, not `context`, so it never clashes with Svelte's mount option. |
 | `open` (bindable), `onOpenChange`, `side`, `showTab`, `panelId` | Dock behaviour. `showTab={false}` leaves opening to your own button. |
-| `copy` | `Partial<AssistantCopy>`: kicker, title, tab and close labels, composer label/placeholder/send, welcome text, settings label, `privacyNotice`, `servedBy(served)`, `tokensLabel(n)`, door and MCP strings, status messages. `defaultAssistantCopy` lists them all. |
+| `copy` | `AssistantCopyOverrides`: kicker, title, tab/close/open labels, composer label/placeholder/send, welcome text, settings and export labels, `privacyNotice`, `servedBy(served)`, `tokensLabel(n)`, door and MCP strings, every chat string (`you`, `stop`, `copyMessage`, `copied`, `showActivity`, `status`, …), history/export/turn-failure messages. `defaultAssistantCopy` lists them all; nothing user-facing is hard-coded. |
+| `accountControls` | Default `true`. `false` removes Connect, Connected and Disconnect from the settings (use it with your own `AccountsButton`). The billed-models opt-in stays visible while an account is connected. |
 | `privacyNotice` | Shortcut for `copy.privacyNotice`; `''` hides the line. |
 | `pickerLabels` | `Partial<ProviderPickerLabels>`. |
 | `doorPrompt({ draft })`, `assistants` | Builds the prompt for the door row (hidden when omitted); `assistants` picks `'chatgpt' \| 'claude' \| 'perplexity'`. |
 | `mcpUrl`, `mcpName` | HTTPS MCP address for the disclosure (`mcpConnector`); an invalid address hides it. |
 | `accounts` | An `AccountsStore` (below): the provider list refreshes when an account connects or disconnects elsewhere. |
 | `storage`, `storageKey` | Optional `{ getItem, setItem }` that remembers provider, model and opt-in. |
-| `conversationId`, `onEvent(wire)` | Every `WireEvent` of every turn, for persistence or a full `ConversationModel`. |
+| `conversationId`, `onEvent(wire)` | Wire conversation id (with `history`, each conversation gets `<conversationId>:<uuid>`) and every `WireEvent` of every turn, unfiltered, for a full `ConversationModel` of your own. |
+| `history`, `persistFilter(wire)`, `conversationModel(id)`, `onExport(data, fileName)` | History, export and privacy filter; see below. |
 | Snippets | `messageBody(message)` (render Markdown; `message.served` / `message.tokens` are available), `activityExtra(turn)`, `headerExtra()`, `footer()`. |
+
+### History, export and what is persisted
+
+Pass `history` to keep conversations across reloads. The panel saves after every
+turn, restores the latest conversation on mount, shows a conversation picker
+(and "New") once something is saved, and offers an Export button for the
+conversation on screen.
+
+```svelte
+<script>
+  import { localStorageHistory } from '@corbet-labs/ccht/history';
+  import { createConversation } from '@corbet-labs/ccht';
+  const history = localStorageHistory('myapp.chat', { maxConversations: 20, maxBytes: 1_000_000 });
+  // Keep restricted data out of storage and exports: drop (false), keep (true) or return a redacted copy.
+  const persistFilter = (wire) => !isRestricted(wire);
+</script>
+
+<AssistantPanel {providers} {history} {persistFilter}
+  conversationModel={(id) => createConversation(id, { wasm })} />
+```
+
+* **Format.** A saved conversation is the shared model's own event stream, not a
+  second transcript format: `{ version: 1, id, title, createdAt, updatedAt,
+  events: WireEvent[] }`. Events are renumbered per request when saved (so a
+  filtered stream has no gaps) and carry the conversation id, so
+  `createConversation(id)` + `applyEvent` per event rebuilds exactly the
+  snapshot a live conversation has. On restore, turns that were still running
+  are closed with an `interrupted` error.
+* **Export** downloads `<title>-YYYY-MM-DD.json`:
+  `{ format: 'ccht.conversation', version: 1, exported_at, title, snapshot,
+  events }`, where `snapshot` is what `Conversation.snapshot()` returns for
+  `events`. It uses the same filtered events as the saved history. With
+  `conversationModel` the snapshot comes from the Rust/Wasm model (an
+  equivalent JavaScript fold is used when it is not given or fails). `onExport`
+  receives the data instead of a download.
+* **`persistFilter(wire)`** runs for every event before it is kept for saving
+  and export (never for `onEvent`). A throw drops the event. Titles are derived
+  from the kept events, so a filtered question never leaks into the picker.
+* **Adapter.** `ConversationHistory` is `{ list(), load(id), save(conversation),
+  remove?(id) }` (sync or async); implement it for IndexedDB or a server.
+  `localStorageHistory(key, { maxConversations = 20, maxBytes = 1_000_000,
+  storage })` keeps one index plus one record per conversation, drops the
+  oldest conversations beyond the limits (then the oldest turns of the one
+  being saved) and retries after a full-storage error. `memoryHistory()` is
+  session-only. Quota, disabled storage and other failures never break the
+  chat: the conversation stays in memory and the panel shows the one-line
+  `copy.historyUnavailable`.
+
+Layout: settings open as an overlay over the transcript instead of pushing it
+down, the transcript keeps at least half of the panel height, and on viewports
+up to 600px tall (`ccht-assistant-short`, `data-short="true"`) the doors, MCP
+disclosure and `footer` fold into a collapsed block (`copy.moreLabel`; the
+privacy line stays visible). Inputs are 16px only for `(pointer: coarse)`
+devices; selects use `--ccht-select-font-size` (default `0.85rem`) elsewhere.
 
 The component also exports `refresh()` (re-inspect providers; call it through
 `bind:this` after an outside change). Providers are inspected when the panel is
@@ -455,13 +528,15 @@ mounted and each time it opens; nothing is downloaded or connected implicitly.
 Mobile: at 640px and below the panel is a full-screen sheet (class
 `ccht-assistant-sheet`, `data-sheet="true"`): safe-area insets (add
 `viewport-fit=cover` to your viewport meta), Tab stays inside (the panel is
-`aria-modal`), Escape closes, the page behind does not scroll, and inputs are
-16px so iOS does not zoom. Wider screens keep the non-modal edge rail. Motion
+`aria-modal`), Escape closes, the page behind does not scroll, and (on touch
+devices) inputs are 16px so iOS does not zoom. Wider screens keep the non-modal edge rail. Motion
 follows `prefers-reduced-motion`.
 
 Framework-free helpers in `@corbet-labs/ccht/assistant` (`applyWireEvent`,
 `newTurn`, `messagesFromTurns`, `servedOf`) fold agent wire events into the
-`TurnState` shape without loading Wasm.
+`TurnState` shape without loading Wasm. `@corbet-labs/ccht/history` adds
+`localStorageHistory`, `memoryHistory`, `renumberEvents`, `replayTurns`,
+`snapshotFromEvents`, `buildExport`, `exportFileName` and `downloadJson`.
 
 ## Components (`AccountsButton.svelte`, `AccountsPanel.svelte`)
 
@@ -547,3 +622,4 @@ ones of `Dock`, `ChatDock` and `ProviderPicker`.
 | `--ccht-popover-top`, `--ccht-popover-right` | Accounts popover position (default `3.5rem`, `1rem`). |
 | `--ccht-accounts-z` | Accounts layer (default `90`; the dock uses 70 and 80). |
 | `--ccht-assistant-gap` | Vertical gap of notice, doors and MCP rows (default `0.4rem`). |
+| `--ccht-select-font-size` | Font size of the model and conversation selects on pointer-precise devices (default `0.85rem`; touch devices use 16px). |

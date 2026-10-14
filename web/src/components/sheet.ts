@@ -7,6 +7,9 @@
 /** Widths up to this render as a full-screen sheet. */
 export const sheetQuery = '(max-width: 640px)';
 
+/** Viewports up to this tall collapse the secondary footer so the transcript keeps its room. */
+export const shortQuery = '(max-height: 600px)';
+
 const focusableSelector =
   'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], summary, [tabindex]:not([tabindex="-1"])';
 
