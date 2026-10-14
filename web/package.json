@@ -43,6 +43,10 @@
       "types": "./src/assistant.ts",
       "import": "./src/assistant.ts"
     },
+    "./history": {
+      "types": "./src/history.ts",
+      "import": "./src/history.ts"
+    },
     "./accounts": {
       "types": "./src/accounts.ts",
       "import": "./src/accounts.ts"
@@ -66,7 +70,7 @@
     "access": "public"
   },
   "scripts": {
-    "test": "bun test src/dock.test.ts src/auth.test.ts src/handoff.test.ts src/assistant.test.ts src/accounts.test.ts src/agent src/tools src/providers && vitest run"
+    "test": "bun test src/dock.test.ts src/auth.test.ts src/handoff.test.ts src/assistant.test.ts src/history.test.ts src/accounts.test.ts src/agent src/tools src/providers && vitest run"
   },
   "peerDependencies": {
     "@mlc-ai/web-llm": "^0.2.86",
