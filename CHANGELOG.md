@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+## 0.3.1 - 2026-10-14
+
+- ADDED (web): conversation history for `AssistantPanel`. The `history` prop takes
+  a storage adapter (`ConversationHistory`, new `@corbet-labs/ccht/history`;
+  `localStorageHistory(key, { maxConversations, maxBytes })` and `memoryHistory()`
+  are ready-made). The panel saves the replayable `WireEvent` stream after every
+  turn, restores the latest conversation on mount, lists earlier ones in a picker
+  with "New", and degrades to memory with a one-line notice when storage fails
+  (quota, disabled storage).
+- ADDED (web): an Export button (JSON download of the snapshot plus the replayable
+  events; `onExport` to handle it yourself; `conversationModel` to take the
+  snapshot from the Rust/Wasm model) and `persistFilter(event)` to drop or redact
+  events before they are saved or exported.
+- ADDED (web): `accountControls` on `AssistantPanel` and `ProviderPicker` hides
+  Connect, Connected and Disconnect for apps with their own accounts UI (the
+  billed-models opt-in stays visible while an account is connected).
+- CHANGED (web): no user-facing English is hard-coded any more. `ChatDock` (`labels`),
+  `Dock` (`closeText`, `openLabel`), `ProviderPicker` (`downloadProgress`),
+  `AccountConnection` (`labels`), `StepConfig` (`labels`) and `AssistantPanel`
+  (`copy`: `you`, `stop`, `copyMessage`, `showActivity`, `status`, turn-failure
+  messages, …) take overridable strings with English defaults.
+- CHANGED (web): `AssistantPanel` layout. Settings open as an overlay so the
+  transcript keeps at least half of the panel; on viewports up to 600px tall the
+  doors, MCP disclosure and footer fold into a collapsed block; inputs are 16px
+  only for `(pointer: coarse)` devices and selects use `--ccht-select-font-size`
+  on desktop.
+- FIXED (web): a turn that outlives its conversation (the user started another one
+  while it was still running) no longer writes into the new conversation, and the
+  busy state is only cleared by the turn that set it.
+- With `history`, each conversation's wire id is `<conversationId>:<uuid>`; without
+  it the id stays `conversationId`.
+
 ## 0.3.0 - 2026-10-14
 
 - JSR: published again (0.2.10 was skipped there); exports include the new

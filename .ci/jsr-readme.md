@@ -7,19 +7,19 @@ included; the source archive uses XZ compression to fit JSR's package limit.
 Save this as `example.ts`:
 
 ```ts
-import { createConversation } from "jsr:@corbet-labs/ccht@0.3.0";
+import { createConversation } from "jsr:@corbet-labs/ccht@0.3.1";
 
-const wasm = new URL("https://jsr.io/@corbet-labs/ccht/0.3.0/wasm/ccht_bg.wasm");
+const wasm = new URL("https://jsr.io/@corbet-labs/ccht/0.3.1/wasm/ccht_bg.wasm");
 const conversation = await createConversation("workspace/creator", { wasm });
 console.log(conversation.snapshot());
 conversation.free();
 ```
 
-Run `deno run --allow-net=jsr.io example.ts`. Version 0.3.0 requires an explicit
+Run `deno run --allow-net=jsr.io example.ts`. Version 0.3.1 requires an explicit
 Wasm URL or bytes for the first conversation; subsequent conversations share
 the initialized module. JSR exports the JavaScript entrypoint plus `./auth`,
-`./dock`, `./agent`, `./tools`, `./providers`, `./handoff`, `./assistant` and
-`./accounts`; the explicit Wasm subpath in the npm/Vite example below and the
+`./dock`, `./agent`, `./tools`, `./providers`, `./handoff`, `./assistant`,
+`./history` and `./accounts`; the explicit Wasm subpath in the npm/Vite example below and the
 Svelte components belong to the npm package, because JSR exports only
 JavaScript and TypeScript modules.
 
