@@ -88,8 +88,8 @@ re-push the tag or release a new patch version.
 
 ## Operator upload for npm and PyPI
 
-Until npm and PyPI trust `corbet-foss/ccht:release.yml`, upload them from the
-release bundle on a workstation. No build runs; the publisher only verifies and
+Until npm and PyPI trust `corbet-foss/ccht:release.yml`, upload them manually from the
+release bundle. No build runs; the publisher only verifies and
 uploads the reviewed bytes. It needs `GH_TOKEN` with `contents: write` on this
 repository (for the publication journals), and `NPM_TOKEN` or `PYPI_TOKEN` for
 the selected registry:
