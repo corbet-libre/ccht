@@ -2,7 +2,6 @@
 name = "ccht"
 version = "0.3.3"
 edition = "2024"
-rust-version = "1.88"
 license = "LGPL-3.0-only WITH LGPL-3.0-linking-exception"
 description = "Reusable conversations for native applications and the web, with upstream ACP agent integration"
 repository = "https://github.com/corbet-foss/ccht"
