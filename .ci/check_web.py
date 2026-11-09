@@ -51,7 +51,7 @@ if linker_key not in os.environ and not shutil.which("lld"):
         else:
             raise ValueError("Wasm linker unavailable; configure an already installed linker explicitly")
     os.environ[linker_key] = str(linker)
-build = subprocess.run(["cargo", "build", "--locked", "--release", "--no-default-features", "--features", "web", "--target", "wasm32-unknown-unknown", "--message-format=json"], stdout=subprocess.PIPE, text=True)
+build = subprocess.run(["cargo", "rustc", "--locked", "--release", "--no-default-features", "--features", "web", "--target", "wasm32-unknown-unknown", "--crate-type", "cdylib", "--message-format=json"], stdout=subprocess.PIPE, text=True)
 if build.returncode:
     print(build.stdout)
     build.check_returncode()
@@ -151,7 +151,7 @@ with tempfile.TemporaryDirectory(prefix="ccht-web-", dir=os.environ.get("TMPDIR"
         bundle.extractall(module / "source", filter="data")
     clean_target = Path(directory) / "rebuild-target"
     clean_env = dict(os.environ, CARGO_HOME=str(Path(directory) / "empty-cargo-home"), CARGO_TARGET_DIR=str(clean_target))
-    run("cargo", "build", "--locked", "--offline", "--release", "--no-default-features", "--features", "web", "--target", "wasm32-unknown-unknown", cwd=module / "source", env=clean_env)
+    run("cargo", "rustc", "--locked", "--offline", "--release", "--no-default-features", "--features", "web", "--target", "wasm32-unknown-unknown", "--crate-type", "cdylib", cwd=module / "source", env=clean_env)
     run("cargo", "run", "--locked", "--offline", "--release", "-p", "ccht-wasm-bundle", "--", str(clean_target / "wasm32-unknown-unknown/release/ccht.wasm"), str(module / "wasm"), cwd=module / "source", env=clean_env)
     run("node", "check.mjs", cwd=consumer)
     report = {

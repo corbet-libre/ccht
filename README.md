@@ -257,7 +257,7 @@ Use Rust with `wasm32-unknown-unknown` installed. The checked-in generator uses 
 same exact `wasm-bindgen` version as the Rust crate; no global Wasm CLI is required.
 
 ```sh
-cargo build --locked --release --no-default-features --features web --target wasm32-unknown-unknown
+cargo rustc --locked --release --no-default-features --features web --target wasm32-unknown-unknown --crate-type cdylib
 cargo run --locked --release -p ccht-wasm-bundle -- target/wasm32-unknown-unknown/release/ccht.wasm web/wasm
 ```
 
@@ -269,7 +269,7 @@ archive. To rebuild from the distributed package, extract it inside `source/`:
 ```sh
 cd source
 tar -xzf dependencies.tar.gz
-cargo build --locked --offline --release --no-default-features --features web --target wasm32-unknown-unknown
+cargo rustc --locked --offline --release --no-default-features --features web --target wasm32-unknown-unknown --crate-type cdylib
 cargo run --locked --offline --release -p ccht-wasm-bundle -- target/wasm32-unknown-unknown/release/ccht.wasm ../wasm
 ```
 

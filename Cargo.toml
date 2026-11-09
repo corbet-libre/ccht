@@ -11,7 +11,7 @@ keywords = ["chat", "acp", "agents", "wasm", "streaming"]
 categories = ["development-tools", "web-programming"]
 
 [lib]
-crate-type = ["rlib", "cdylib"]
+crate-type = ["rlib"]
 
 [workspace]
 members = [".ci/wasm-bundle"]
