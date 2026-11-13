@@ -5,13 +5,17 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+from urllib.parse import urlsplit
 
 
 root = Path.cwd()
 origin = json.loads((root / ".ci/jsr-input.json").read_text())
 name, version = origin["package"], origin["version"]
 specifier = f"jsr:{name}@{version}"
-wasm_url = f"https://jsr.io/{name}/{version}/wasm/ccht_bg.wasm"
+# The fleet routes JSR through a caching mirror (JSR_URL); the consumer may reach that host and jsr.io only.
+base = os.environ.get("JSR_URL", "https://jsr.io").rstrip("/")
+hosts = sorted({"jsr.io", urlsplit(base).netloc})
+wasm_url = f"{base}/{name}/{version}/wasm/ccht_bg.wasm"
 consumer = (root / ".ci/web-consumer.mjs").read_text()
 consumer = consumer.replace("import { readFile } from 'node:fs/promises';\n", "")
 consumer = consumer.replace("from '@corbet-labs/ccht'", "from " + json.dumps(specifier))
@@ -28,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix="ccht-jsr-registry-", dir=os.environ.get
     # Verify our exact just-published version, whose complete file inventory was
     # already checked by the publisher, before Deno's default age window expires.
     subprocess.run(["deno", "run", "--no-config", "--minimum-dependency-age=0",
-                    "--allow-import=jsr.io", "--allow-net=jsr.io",
+                    "--allow-import=" + ",".join(hosts), "--allow-net=" + ",".join(hosts),
                     "check.mjs"], cwd=work, env=environment, check=True, timeout=180)
 print(json.dumps({"registry": "jsr", "package": name, "version": version,
                   "consumer": "passed", "wasm_url": wasm_url}))
