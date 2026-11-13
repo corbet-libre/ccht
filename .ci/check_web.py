@@ -86,7 +86,9 @@ with tempfile.TemporaryDirectory(prefix="ccht-web-", dir=os.environ.get("TMPDIR"
     # Preserve the full locked source closure. A tar member avoids npm's
     # per-file exclusions changing Cargo's checksum-protected vendor contents.
     vendor = Path(directory) / "vendor"
-    vendor_config = subprocess.check_output(["cargo", "vendor", "--locked", "--offline", "--versioned-dirs", str(vendor)], text=True)
+    # Fetched through the cargo source the runner is configured with (the fleet crates mirror), at exactly
+    # the Cargo.lock set (--locked); the rebuild below is offline from this vendor tree.
+    vendor_config = subprocess.check_output(["cargo", "vendor", "--locked", "--versioned-dirs", str(vendor)], text=True)
     cargo_config = source / ".cargo/config.toml"
     cargo_config.parent.mkdir()
     cargo_config.write_text(vendor_config.replace(str(vendor), "vendor"))
