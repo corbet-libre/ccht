@@ -130,7 +130,7 @@ with tempfile.TemporaryDirectory(prefix="ccht-python-", dir=os.environ.get("TMPD
         shutil.copy2(license_path, licenses / name)
         source_map["LICENSES/" + name] = "LICENSES/" + name
     vendor = stage / "vendor"
-    config = subprocess.check_output(["cargo", "vendor", "--locked", "--offline", "--versioned-dirs", str(vendor)], cwd=stage, text=True)
+    config = subprocess.check_output(["cargo", "vendor", "--locked", "--versioned-dirs", str(vendor)], cwd=stage, text=True)
     (stage / ".cargo").mkdir()
     (stage / ".cargo/config.toml").write_text(config.replace(str(vendor), "vendor"))
     for dependency in sorted(vendor.iterdir()):
