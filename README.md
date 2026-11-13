@@ -1,5 +1,9 @@
 # ccht
 
+<!-- ccid:security:begin (rendered by ccid render; do not edit by hand) -->
+**Security and dependencies:** kept up to date automatically (Renovate, with OSV vulnerability alerts); updates are merged when their tests pass. See the [security policy](SECURITY.md).
+<!-- ccid:security:end -->
+
 Reusable conversations for Rust applications, terminals and web frontends.
 **ccht** keeps the conversation model in Rust and compiles
 that same model to Wasm. Native hosts connect to installed agents using the
