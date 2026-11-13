@@ -43,15 +43,11 @@ commands = [["python3", ".ci/check_python_registry.py"]]
 kind = "commands"
 commands = [["python3", ".ci/check_python.py", "--resolve-only"]]
 
-# Manual publication adapter; no product compilation occurs.
-[checks.release]
+# The files of a release: the crate, the Wasm npm package and the Python native wheel, made by
+# the package scripts above (a custom Wasm build and a native wheel are not `kind = "pack"` work).
+[checks.release-build]
 kind = "commands"
-commands = [["python3", ".ci/publish.py"]]
-
-# Syntax and manual publication contract; no product build or network.
-[checks.release-config]
-kind = "commands"
-commands = [["python3", ".ci/release-check.py"]]
+commands = [["python3", ".ci/release-build.py"]]
 
 # verify aggregates the cached subset of the hosted Linux route (ci.yml case branches):
 # rust + ccid-defined standalone packaging/integration selectors in dependency
@@ -70,12 +66,21 @@ kind = "commands"
 commands = [["bash", ".ci/verify.sh"]]
 cache_tools = [["rustc", "-vV"], ["cargo", "--version"], ["python3", "--version"], ["node", "--version"], ["npm", "--version"], ["deno", "--version"], ["uv", "--version"], ["patchelf", "--version"]]
 
+[release]
+kind = "library"
+version = "Cargo.toml"
+registries = ["crates", "npm", "pypi"]
+build = ["release-build"]
+notes = "CHANGELOG.md"
+
 [render]
-render_schema = 2
+render_schema = 3
 [jobs.verify]
 scheduler = "forgejo"
 runs_on = "linux"
 checks = ["verify", "licenses", "jsr-registry", "python-registry"]
 workflow = "ci"
 command = ["bash", ".ci/run-cached.sh"]
-events = ["manual"]
+
+[surface]
+keep = { ".ci/artifact_root.py" = "imported by the package scripts the release build runs" }
