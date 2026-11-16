@@ -159,22 +159,17 @@ impl CodexDeviceDriver {
                 "driver deadlines must be positive",
             ));
         }
-        let home = std::env::var("HOME")
-            .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().into_owned());
-        // Resolve bare names against the parent PATH before clearing it, so
-        // fixtures work where the interpreter lives outside the minimal set.
+        // Resolve bare names against the parent PATH (PATHEXT-aware on Windows).
         let resolved = super::resolve_program(&self.program);
         let mut spawn = Command::new(&resolved);
         spawn
             .args(&self.lead_args)
             .arg("app-server")
-            .env_clear()
-            .env("PATH", "/usr/local/bin:/usr/bin:/bin")
-            .env("HOME", home)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .kill_on_drop(true);
+        super::apply_agent_env(&mut spawn);
         let mut child = spawn
             .spawn()
             .map_err(|_| DriverError::Spawn("codex helper could not be launched"))?;

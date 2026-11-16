@@ -253,7 +253,7 @@ pub async fn complete_device_login<D: LoginDriver>(
 /// the original name so spawn still fails with the fixed `Spawn` message.
 pub(crate) fn resolve_program(program: &PathBuf) -> PathBuf {
     let text = program.to_string_lossy();
-    if text.is_empty() || text.contains('/') {
+    if text.is_empty() || text.contains('/') || text.contains('\\') {
         return program.clone();
     }
     if let Some(paths) = std::env::var_os("PATH") {
@@ -262,9 +262,56 @@ pub(crate) fn resolve_program(program: &PathBuf) -> PathBuf {
             if candidate.is_file() {
                 return candidate;
             }
+            #[cfg(windows)]
+            for ext in std::env::var("PATHEXT")
+                .unwrap_or(".EXE;.CMD;.BAT".into())
+                .split(';')
+            {
+                if ext.is_empty() {
+                    continue;
+                }
+                let mut name = program.clone().into_os_string();
+                name.push(ext);
+                let candidate = dir.join(name);
+                if candidate.is_file() {
+                    return candidate;
+                }
+            }
         }
     }
     program.clone()
+}
+
+/// Names of inherited variables that must be blanked for a spawned agent.
+///
+/// Agent login owns the credentials, so ambient API keys and provider
+/// tokens never reach the helper. Everything else is inherited untouched.
+pub(crate) fn credential_overrides<I>(vars: I) -> Vec<String>
+where
+    I: IntoIterator<Item = String>,
+{
+    vars.into_iter()
+        .filter(|key| {
+            let upper = key.to_ascii_uppercase();
+            crate::native::client::api_credential_variable(key)
+                || (upper.starts_with("OPENAI_")
+                    && (upper.ends_with("_KEY")
+                        || upper.ends_with("_TOKEN")
+                        || upper.ends_with("_SECRET")))
+        })
+        .collect()
+}
+
+/// Shared environment policy for every driver that spawns an agent: inherit
+/// the parent environment (PATH, proxies, config dirs, and on Windows
+/// SystemRoot, USERPROFILE, APPDATA, PATHEXT) and blank credential variables.
+pub(crate) fn apply_agent_env(command: &mut tokio::process::Command) {
+    for key in credential_overrides(std::env::vars_os().filter_map(|(k, _)| k.into_string().ok())) {
+        command.env(key, "");
+    }
+    if std::env::var_os("HOME").is_none() {
+        command.env("HOME", std::env::temp_dir());
+    }
 }
 
 #[cfg(test)]
@@ -275,6 +322,62 @@ fn assert_send<T: Send>() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn credential_overrides_blank_keys_only() {
+        let names = credential_overrides(
+            [
+                "OPENAI_API_KEY",
+                "OPENAI_ACCESS_TOKEN",
+                "ANTHROPIC_API_KEY",
+                "PATH",
+                "HTTPS_PROXY",
+                "NO_PROXY",
+                "CODEX_HOME",
+                "CLAUDE_CONFIG_DIR",
+                "SystemRoot",
+                "USERPROFILE",
+                "APPDATA",
+                "PATHEXT",
+                "HOME",
+                "OPENAI_BASE_URL",
+            ]
+            .map(String::from),
+        );
+        assert_eq!(
+            names,
+            ["OPENAI_API_KEY", "OPENAI_ACCESS_TOKEN", "ANTHROPIC_API_KEY"]
+        );
+    }
+
+    #[test]
+    fn agent_env_inherits_and_blanks() {
+        // Variables set only for this process; names are unique to the test.
+        unsafe {
+            std::env::set_var("CCHT_ENVTEST_API_KEY", "secret");
+            std::env::set_var("CCHT_ENVTEST_KEEP", "kept");
+        }
+        let mut command = tokio::process::Command::new("true");
+        apply_agent_env(&mut command);
+        let std_cmd = command.as_std();
+        let get = |k: &str| {
+            std_cmd
+                .get_envs()
+                .find(|(key, _)| *key == std::ffi::OsStr::new(k))
+                .map(|(_, v)| v)
+        };
+        assert_eq!(
+            get("CCHT_ENVTEST_API_KEY"),
+            Some(Some(std::ffi::OsStr::new("")))
+        );
+        // Not overridden, so inherited by default (no env_clear).
+        assert_eq!(get("CCHT_ENVTEST_KEEP"), None);
+        assert_eq!(get("PATH"), None);
+        unsafe {
+            std::env::remove_var("CCHT_ENVTEST_API_KEY");
+            std::env::remove_var("CCHT_ENVTEST_KEEP");
+        }
+    }
 
     #[test]
     fn driver_types_are_send() {

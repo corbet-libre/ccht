@@ -231,10 +231,7 @@ fn launch(
             "opencode program must not be empty",
         ));
     }
-    let home = std::env::var("HOME")
-        .unwrap_or_else(|_| std::env::temp_dir().to_string_lossy().into_owned());
-    // Resolve bare names against the parent PATH before clearing it, so
-    // fixtures work where the interpreter lives outside the minimal set.
+    // Resolve bare names against the parent PATH.
     let resolved = super::resolve_program(program);
     let mut spawn = Command::new(&resolved);
     spawn
@@ -246,14 +243,12 @@ fn launch(
             "--port",
             &port.to_string(),
         ])
-        .env_clear()
-        .env("PATH", "/usr/local/bin:/usr/bin:/bin")
-        .env("HOME", home)
         .env("OPENCODE_SERVER_PASSWORD", password)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .kill_on_drop(true);
+    super::apply_agent_env(&mut spawn);
     spawn
         .spawn()
         .map_err(|_| DriverError::Spawn("control server could not be launched"))

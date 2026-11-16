@@ -385,7 +385,7 @@ impl NativeClient {
     }
 }
 
-fn api_credential_variable(key: &str) -> bool {
+pub(crate) fn api_credential_variable(key: &str) -> bool {
     let upper = key.to_ascii_uppercase();
     upper.ends_with("_API_KEY")
         || matches!(
